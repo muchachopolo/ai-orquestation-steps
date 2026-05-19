@@ -1,0 +1,1552 @@
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECTION 1: LangSmith Deep Dive
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<section id="langsmith" class="py-20 px-6">
+  <div class="max-w-5xl mx-auto">
+
+    <!-- Section Header -->
+    <div class="text-center mb-16 fade-in">
+      <span class="inline-block px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase bg-accent/10 text-accent-light border border-accent/20 mb-4">Observability & Testing</span>
+      <h2 class="text-4xl md:text-5xl font-bold mb-4">
+        <span class="gradient-text">LangSmith</span> Deep Dive
+      </h2>
+      <p class="text-gray-400 text-lg max-w-2xl mx-auto">The DevOps platform for LLM applications — debug, test, evaluate, and monitor your AI systems in production.</p>
+    </div>
+
+    <!-- What is LangSmith -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-8 fade-in">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+          <svg class="w-5 h-5 text-accent-light" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+        </div>
+        <h3 class="text-2xl font-bold text-white">What is LangSmith?</h3>
+      </div>
+      <p class="text-gray-300 leading-relaxed mb-4">LangSmith is <strong class="text-white">not</strong> a framework for building LLM apps — it's the <strong class="text-accent-light">DevOps platform</strong> that sits alongside your application. Think of it as Datadog or New Relic, but purpose-built for AI workflows.</p>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="bg-elevated rounded-xl p-4 border border-white/5">
+          <h4 class="text-sm font-semibold text-accent-light mb-2">What it does</h4>
+          <ul class="text-sm text-gray-300 space-y-1">
+            <li>&#x2022; Traces every LLM call, tool use, and chain step</li>
+            <li>&#x2022; Evaluates output quality with custom metrics</li>
+            <li>&#x2022; Manages and versions prompts</li>
+            <li>&#x2022; Monitors production latency, cost, errors</li>
+            <li>&#x2022; Collects user feedback for fine-tuning</li>
+          </ul>
+        </div>
+        <div class="bg-elevated rounded-xl p-4 border border-white/5">
+          <h4 class="text-sm font-semibold text-gold mb-2">What it is NOT</h4>
+          <ul class="text-sm text-gray-300 space-y-1">
+            <li>&#x2022; Not a framework (use LangChain/LangGraph for that)</li>
+            <li>&#x2022; Not required to use LangChain</li>
+            <li>&#x2022; Not only for LangChain — works with any LLM code</li>
+            <li>&#x2022; Not a model provider</li>
+            <li>&#x2022; Not open-source (SaaS with self-hosted option)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 1: Setup & Tracing -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-8 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center text-green-400 font-bold text-sm">01</div>
+        <h3 class="text-2xl font-bold text-white">Setup & Tracing</h3>
+      </div>
+
+      <p class="text-gray-300 mb-4">Tracing captures the full execution path of your LLM app — every prompt, response, tool call, and latency measurement.</p>
+
+      <h4 class="text-lg font-semibold text-white mb-3">Environment Variables</h4>
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+        <pre><code class="text-sm text-gray-300"># .env — Required for LangSmith tracing
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=lsv2_pt_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+LANGCHAIN_PROJECT=my-awesome-project
+LANGCHAIN_ENDPOINT=https://api.smith.langchain.com  # default, optional</code></pre>
+      </div>
+
+      <h4 class="text-lg font-semibold text-white mb-3">Automatic Tracing (LangChain code)</h4>
+      <p class="text-gray-400 text-sm mb-3">Any LangChain/LangGraph code traces automatically when env vars are set — zero code changes needed.</p>
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+        <pre><code class="text-sm text-gray-300">from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+
+# This is automatically traced in LangSmith — no extra code!
+llm = ChatOpenAI(model="gpt-4o")
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a helpful assistant."),
+    ("human", "{question}")
+])
+
+chain = prompt | llm
+response = chain.invoke({"question": "What is LangSmith?"})
+# ^ This entire execution appears as a trace in your LangSmith dashboard</code></pre>
+      </div>
+
+      <h4 class="text-lg font-semibold text-white mb-3">Manual Tracing with @traceable</h4>
+      <p class="text-gray-400 text-sm mb-3">For non-LangChain code or custom functions you want to include in traces:</p>
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+        <pre><code class="text-sm text-gray-300">from langsmith import traceable
+from openai import OpenAI
+
+client = OpenAI()
+
+@traceable(name="classify_intent", run_type="llm")
+def classify_intent(user_message: str) -> str:
+    """Classify user intent — traced in LangSmith even without LangChain."""
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "Classify the intent: greeting, question, complaint, other"},
+            {"role": "user", "content": user_message}
+        ]
+    )
+    return response.choices[0].message.content
+
+@traceable(name="handle_user_request", run_type="chain")
+def handle_user_request(message: str) -> dict:
+    """Parent trace that contains child spans."""
+    intent = classify_intent(message)  # child span
+    return {"intent": intent, "message": message}
+
+# Running this creates a trace tree in LangSmith:
+# handle_user_request (chain)
+#   └── classify_intent (llm)
+result = handle_user_request("I'm having trouble with my order")</code></pre>
+      </div>
+
+      <h4 class="text-lg font-semibold text-white mb-3">What you see in LangSmith</h4>
+      <div class="bg-elevated rounded-xl p-4 border border-white/5 font-mono text-xs text-gray-400 mb-4">
+        <pre>
+┌─────────────────────────────────────────────────────────────────────────┐
+│  LangSmith Trace View                                          [Live]  │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ▼ handle_user_request          chain    1.2s    ✓ Success             │
+│    ├─ Input: "I'm having trouble with my order"                        │
+│    ├─ Output: {"intent": "complaint", "message": "..."}               │
+│    │                                                                    │
+│    └─▼ classify_intent           llm     0.8s    ✓ Success             │
+│        ├─ Prompt: [system: "Classify...", user: "I'm having..."]       │
+│        ├─ Completion: "complaint"                                       │
+│        ├─ Tokens: 45 in / 3 out                                        │
+│        └─ Cost: $0.0003                                                 │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘</pre>
+      </div>
+    </div>
+
+    <!-- Step 2: Evaluations -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-8 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400 font-bold text-sm">02</div>
+        <h3 class="text-2xl font-bold text-white">Evaluations</h3>
+      </div>
+
+      <p class="text-gray-300 mb-4">Evaluations let you systematically test your LLM app against datasets. No more "I tried 3 inputs and it looked fine."</p>
+
+      <h4 class="text-lg font-semibold text-white mb-3">Creating Datasets</h4>
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+        <pre><code class="text-sm text-gray-300">from langsmith import Client
+
+client = Client()
+
+# Create a dataset programmatically
+dataset = client.create_dataset(
+    dataset_name="qa-eval-set",
+    description="QA pairs for evaluating our support bot"
+)
+
+# Add examples to the dataset
+examples = [
+    {
+        "inputs": {"question": "How do I reset my password?"},
+        "outputs": {"answer": "Go to Settings > Security > Reset Password"}
+    },
+    {
+        "inputs": {"question": "What are your business hours?"},
+        "outputs": {"answer": "Monday to Friday, 9 AM to 6 PM BOT"}
+    },
+    {
+        "inputs": {"question": "Can I get a refund?"},
+        "outputs": {"answer": "Yes, within 30 days of purchase with receipt"}
+    },
+]
+
+for example in examples:
+    client.create_example(
+        inputs=example["inputs"],
+        outputs=example["outputs"],
+        dataset_id=dataset.id
+    )</code></pre>
+      </div>
+
+      <h4 class="text-lg font-semibold text-white mb-3">Running Evaluations</h4>
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+        <pre><code class="text-sm text-gray-300">from langsmith.evaluation import evaluate, LangChainStringEvaluator
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+
+# Define the system under test
+llm = ChatOpenAI(model="gpt-4o-mini")
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a customer support agent. Answer concisely."),
+    ("human", "{question}")
+])
+chain = prompt | llm
+
+# Target function that takes dataset inputs and returns a prediction
+def predict(inputs: dict) -> dict:
+    response = chain.invoke({"question": inputs["question"]})
+    return {"answer": response.content}
+
+# Built-in evaluators
+evaluators = [
+    LangChainStringEvaluator("correctness"),   # Is the answer factually correct?
+    LangChainStringEvaluator("helpfulness"),   # Is it helpful to the user?
+    LangChainStringEvaluator("relevance"),     # Does it address the question?
+]
+
+# Run the evaluation
+results = evaluate(
+    predict,
+    data="qa-eval-set",
+    evaluators=evaluators,
+    experiment_prefix="support-bot-v2",
+    metadata={"model": "gpt-4o-mini", "version": "2.0"}
+)</code></pre>
+      </div>
+
+      <h4 class="text-lg font-semibold text-white mb-3">Custom Evaluators</h4>
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+        <pre><code class="text-sm text-gray-300">from langsmith.schemas import Example, Run
+
+def conciseness_evaluator(run: Run, example: Example) -> dict:
+    """Custom evaluator: penalize answers that are too long."""
+    prediction = run.outputs.get("answer", "")
+    word_count = len(prediction.split())
+
+    if word_count <= 30:
+        score = 1.0
+    elif word_count <= 60:
+        score = 0.7
+    else:
+        score = 0.3
+
+    return {
+        "key": "conciseness",
+        "score": score,
+        "comment": f"Answer has {word_count} words"
+    }
+
+def contains_no_hallucination(run: Run, example: Example) -> dict:
+    """Check that the answer doesn't contradict the reference."""
+    prediction = run.outputs.get("answer", "")
+    reference = example.outputs.get("answer", "")
+
+    # Simple keyword overlap check (in production, use LLM-as-judge)
+    ref_keywords = set(reference.lower().split())
+    pred_keywords = set(prediction.lower().split())
+    overlap = len(ref_keywords & pred_keywords) / max(len(ref_keywords), 1)
+
+    return {
+        "key": "no_hallucination",
+        "score": 1.0 if overlap > 0.3 else 0.0,
+        "comment": f"Keyword overlap: {overlap:.2f}"
+    }
+
+# Use custom evaluators in evaluation
+results = evaluate(
+    predict,
+    data="qa-eval-set",
+    evaluators=[conciseness_evaluator, contains_no_hallucination],
+    experiment_prefix="support-bot-v2-custom-eval"
+)</code></pre>
+      </div>
+    </div>
+
+    <!-- Step 3: Prompt Management -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-8 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400 font-bold text-sm">03</div>
+        <h3 class="text-2xl font-bold text-white">Prompt Management</h3>
+      </div>
+
+      <p class="text-gray-300 mb-4">Version your prompts like code. Deploy, rollback, and A/B test different versions without redeploying your app.</p>
+
+      <h4 class="text-lg font-semibold text-white mb-3">Push & Pull Prompts</h4>
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+        <pre><code class="text-sm text-gray-300">from langchain import hub
+from langchain_core.prompts import ChatPromptTemplate
+
+# Create and push a prompt to LangSmith Hub
+support_prompt = ChatPromptTemplate.from_messages([
+    ("system", """You are a customer support agent for Caseritas Store.
+Rules:
+- Always respond in Spanish (Bolivia)
+- Be concise (max 2 sentences)
+- If you don't know, say "No tengo esa información, te conecto con un agente"
+- Never make up policies"""),
+    ("human", "{question}")
+])
+
+# Push to your organization's prompt repo
+hub.push("my-org/support-agent-v1", support_prompt, new_repo_is_public=False)
+
+# Pull in production code — always gets latest committed version
+production_prompt = hub.pull("my-org/support-agent-v1")
+
+# Pull a specific commit (for pinned deployments)
+pinned_prompt = hub.pull("my-org/support-agent-v1:abc123def")</code></pre>
+      </div>
+
+      <h4 class="text-lg font-semibold text-white mb-3">A/B Testing Prompts</h4>
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+        <pre><code class="text-sm text-gray-300">import random
+from langchain import hub
+from langchain_openai import ChatOpenAI
+from langsmith import traceable
+
+llm = ChatOpenAI(model="gpt-4o-mini")
+
+# Load two prompt versions
+prompt_a = hub.pull("my-org/support-agent-v1")  # Original
+prompt_b = hub.pull("my-org/support-agent-v2")  # New version with examples
+
+@traceable(name="support_ab_test")
+def answer_with_ab_test(question: str) -> dict:
+    """Route 50/50 between prompt versions, tracked in LangSmith."""
+    variant = "A" if random.random() < 0.5 else "B"
+    prompt = prompt_a if variant == "A" else prompt_b
+
+    chain = prompt | llm
+    response = chain.invoke({"question": question})
+
+    return {
+        "answer": response.content,
+        "variant": variant  # This metadata appears in LangSmith traces
+    }</code></pre>
+      </div>
+    </div>
+
+    <!-- Step 4: Production Monitoring -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-8 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-gold/20 flex items-center justify-center text-gold font-bold text-sm">04</div>
+        <h3 class="text-2xl font-bold text-white">Production Monitoring</h3>
+      </div>
+
+      <p class="text-gray-300 mb-4">Once deployed, LangSmith gives you real-time dashboards for latency, cost, error rates, and user satisfaction.</p>
+
+      <div class="grid md:grid-cols-4 gap-3 mb-6">
+        <div class="bg-elevated rounded-xl p-4 border border-white/5 text-center">
+          <p class="text-2xl font-bold text-green-400">1.2s</p>
+          <p class="text-xs text-gray-400">Avg Latency</p>
+        </div>
+        <div class="bg-elevated rounded-xl p-4 border border-white/5 text-center">
+          <p class="text-2xl font-bold text-accent-light">$0.03</p>
+          <p class="text-xs text-gray-400">Avg Cost/Call</p>
+        </div>
+        <div class="bg-elevated rounded-xl p-4 border border-white/5 text-center">
+          <p class="text-2xl font-bold text-gold">99.2%</p>
+          <p class="text-xs text-gray-400">Success Rate</p>
+        </div>
+        <div class="bg-elevated rounded-xl p-4 border border-white/5 text-center">
+          <p class="text-2xl font-bold text-blue-400">4.2/5</p>
+          <p class="text-xs text-gray-400">User Rating</p>
+        </div>
+      </div>
+
+      <h4 class="text-lg font-semibold text-white mb-3">Collecting User Feedback</h4>
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+        <pre><code class="text-sm text-gray-300">from langsmith import Client
+from langsmith.run_helpers import get_current_run_tree
+
+client = Client()
+
+@traceable(name="chat_response")
+def get_chat_response(user_message: str) -> dict:
+    """Generate response and return run_id for feedback."""
+    # Get the current run's ID so we can attach feedback later
+    run_tree = get_current_run_tree()
+    run_id = str(run_tree.id) if run_tree else None
+
+    # ... your LLM logic here ...
+    response = "Tu pedido llegará en 15 minutos"
+
+    return {"response": response, "run_id": run_id}
+
+# In your API endpoint, after user gives thumbs up/down:
+def submit_feedback(run_id: str, score: int, comment: str = ""):
+    """Called when user clicks thumbs up (1) or thumbs down (0)."""
+    client.create_feedback(
+        run_id=run_id,
+        key="user_rating",
+        score=score,           # 0 or 1 for thumbs, or 1-5 for stars
+        comment=comment,       # Optional user comment
+    )
+
+# Example: user liked the response
+submit_feedback(
+    run_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    score=1,
+    comment="Rápido y preciso"
+)</code></pre>
+      </div>
+
+      <h4 class="text-lg font-semibold text-white mb-3">Filtering & Alerting</h4>
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+        <pre><code class="text-sm text-gray-300"># Query traces programmatically for monitoring/alerting
+from langsmith import Client
+from datetime import datetime, timedelta
+
+client = Client()
+
+# Find all failed runs in the last hour
+failed_runs = client.list_runs(
+    project_name="my-awesome-project",
+    filter='eq(status, "error")',
+    start_time=datetime.now() - timedelta(hours=1),
+)
+
+# Find slow runs (latency > 5 seconds)
+slow_runs = client.list_runs(
+    project_name="my-awesome-project",
+    filter='gt(latency, 5)',
+    start_time=datetime.now() - timedelta(hours=1),
+)
+
+# Find runs with negative user feedback
+bad_runs = client.list_runs(
+    project_name="my-awesome-project",
+    filter='eq(feedback_key, "user_rating") and eq(feedback_score, 0)',
+    start_time=datetime.now() - timedelta(days=1),
+)
+
+for run in bad_runs:
+    print(f"Bad run: {run.id} | Input: {run.inputs} | Feedback: {run.feedback_stats}")</code></pre>
+      </div>
+    </div>
+
+    <!-- Step 5: Debugging -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center text-red-400 font-bold text-sm">05</div>
+        <h3 class="text-2xl font-bold text-white">Debugging</h3>
+      </div>
+
+      <p class="text-gray-300 mb-4">When your agent fails, trace trees show you exactly where and why. No more guessing with print statements.</p>
+
+      <h4 class="text-lg font-semibold text-white mb-3">Trace Tree Example: RAG Pipeline Failure</h4>
+      <div class="bg-elevated rounded-xl p-4 border border-white/5 font-mono text-xs text-gray-400 mb-4">
+        <pre>
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Trace: rag_pipeline   Status: ✗ ERROR   Duration: 3.4s               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ▼ rag_pipeline                    chain    3.4s    ✗ Error            │
+│    │                                                                    │
+│    ├─▼ parse_query                 chain    0.1s    ✓ Success          │
+│    │    └─ Output: {"query": "delivery time", "filters": {"city":...}} │
+│    │                                                                    │
+│    ├─▼ retrieve_documents          retriever 0.5s   ✓ Success          │
+│    │    └─ Output: 4 documents retrieved                                │
+│    │                                                                    │
+│    ├─▼ rerank_documents            chain    0.3s    ✓ Success          │
+│    │    └─ Output: 2 documents after reranking (score > 0.7)           │
+│    │                                                                    │
+│    └─▼ generate_answer             llm      2.5s    ✗ ERROR            │
+│         ├─ Input tokens: 8,432  (context too long!)                    │
+│         ├─ Error: "context_length_exceeded"                             │
+│         └─ Message: "Maximum context length is 8192 tokens"            │
+│                                                                         │
+│  ROOT CAUSE: Retrieved docs too large for gpt-4o-mini context window   │
+│  FIX: Add chunking or switch to gpt-4o (128k context)                  │
+└─────────────────────────────────────────────────────────────────────────┘</pre>
+      </div>
+
+      <h4 class="text-lg font-semibold text-white mb-3">Debugging Code: Replay & Compare</h4>
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+        <pre><code class="text-sm text-gray-300">from langsmith import Client
+
+client = Client()
+
+# Get a specific failed run to debug
+failed_run = client.read_run("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+
+print(f"Status: {failed_run.status}")
+print(f"Error: {failed_run.error}")
+print(f"Inputs: {failed_run.inputs}")
+print(f"Latency: {failed_run.total_time}")
+
+# Get all child runs to see the full trace tree
+child_runs = list(client.list_runs(
+    project_name="my-awesome-project",
+    filter=f'eq(parent_run_id, "{failed_run.id}")'
+))
+
+for child in child_runs:
+    status = "✓" if child.status == "success" else "✗"
+    print(f"  {status} {child.name}: {child.run_type} ({child.total_time:.2f}s)")
+    if child.error:
+        print(f"    Error: {child.error}")
+
+# Compare a successful run vs failed run
+successful_run = client.read_run("yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy")
+
+print("\n--- COMPARISON ---")
+print(f"Success input tokens: {successful_run.total_tokens}")
+print(f"Failed input tokens: {failed_run.total_tokens}")
+print(f"Success latency: {successful_run.total_time:.2f}s")
+print(f"Failed latency: {failed_run.total_time:.2f}s")</code></pre>
+      </div>
+
+      <div class="bg-accent/5 border border-accent/20 rounded-xl p-4">
+        <p class="text-sm text-gray-300"><strong class="text-accent-light">Pro tip:</strong> In the LangSmith UI, you can click any trace and hit "Playground" to replay it with modified inputs or a different model. This lets you iterate on fixes without rerunning your entire pipeline.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECTION 2: Real-World Project — Content Creation Pipeline
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<section id="real-project" class="py-20 px-6">
+  <div class="max-w-5xl mx-auto">
+
+    <!-- Section Header -->
+    <div class="text-center mb-16 fade-in">
+      <span class="inline-block px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase bg-gold/10 text-gold border border-gold/20 mb-4">Complete Project</span>
+      <h2 class="text-4xl md:text-5xl font-bold mb-4">
+        Real-World: <span class="gradient-text">Content Creation Pipeline</span>
+      </h2>
+      <p class="text-gray-400 text-lg max-w-2xl mx-auto">A multi-agent system that researches, writes, edits, and publishes articles — with human approval gates and full LangSmith observability.</p>
+    </div>
+
+    <!-- Architecture Diagram -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-8 fade-in">
+      <h3 class="text-xl font-bold text-white mb-4">Architecture</h3>
+      <div class="bg-elevated rounded-xl p-6 border border-white/5 font-mono text-xs text-gray-300 overflow-x-auto mb-4">
+        <pre>
+                    ┌──────────────────────────────────────────────────┐
+                    │           CONTENT CREATION PIPELINE               │
+                    └──────────────────────────────────────────────────┘
+
+                                    ┌─────────┐
+                                    │  START  │
+                                    └────┬────┘
+                                         │
+                                         ▼
+                              ┌─────────────────────┐
+                              │  RESEARCH AGENT     │
+                              │  (Search & gather   │
+                              │   information)      │
+                              └──────────┬──────────┘
+                                         │
+                                         ▼
+                              ┌─────────────────────┐
+                              │  WRITER AGENT       │
+                              │  (Draft article     │◄──────────┐
+                              │   from research)    │           │
+                              └──────────┬──────────┘           │
+                                         │                      │
+                                         ▼                      │
+                              ┌─────────────────────┐           │
+                              │  EDITOR AGENT       │           │
+                              │  (Review quality)   │───────────┘
+                              └──────────┬──────────┘  (needs_revision)
+                                         │
+                                         │ (approved)
+                                         ▼
+                              ┌─────────────────────┐
+                              │  HUMAN APPROVAL     │
+                              │  (interrupt_before) │
+                              └──────────┬──────────┘
+                                         │
+                                         │ (approved by human)
+                                         ▼
+                              ┌─────────────────────┐
+                              │  PUBLISHER AGENT    │
+                              │  (Format & publish) │
+                              └──────────┬──────────┘
+                                         │
+                                         ▼
+                                    ┌─────────┐
+                                    │   END   │
+                                    └─────────┘</pre>
+      </div>
+
+      <div class="grid md:grid-cols-4 gap-3">
+        <div class="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-center">
+          <p class="text-sm font-semibold text-blue-400">Research</p>
+          <p class="text-xs text-gray-400">Gathers sources</p>
+        </div>
+        <div class="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center">
+          <p class="text-sm font-semibold text-green-400">Writer</p>
+          <p class="text-xs text-gray-400">Creates draft</p>
+        </div>
+        <div class="bg-purple-500/10 border border-purple-500/20 rounded-xl p-3 text-center">
+          <p class="text-sm font-semibold text-purple-400">Editor</p>
+          <p class="text-xs text-gray-400">Reviews & loops</p>
+        </div>
+        <div class="bg-gold/10 border border-gold/20 rounded-xl p-3 text-center">
+          <p class="text-sm font-semibold text-gold">Publisher</p>
+          <p class="text-xs text-gray-400">Formats output</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Full Implementation -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-8 fade-in">
+      <h3 class="text-xl font-bold text-white mb-2">Complete Implementation</h3>
+      <p class="text-gray-400 text-sm mb-4">Copy this entire file, set your API keys, and run it. Requires: <code class="text-accent-light">pip install langgraph langchain-openai langsmith tavily-python</code></p>
+
+      <div class="border border-white/10 rounded-xl overflow-hidden mb-4">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="w-full px-4 py-3 bg-elevated text-left text-sm font-medium text-gray-200 flex justify-between items-center">
+          <span>content_pipeline.py — Full working code (140 lines)</span><span class="text-accent">+</span>
+        </button>
+        <div class="hidden p-4 bg-surface/50">
+          <pre><code class="text-sm text-gray-300">"""
+Multi-Agent Content Creation Pipeline with LangGraph.
+Requirements: pip install langgraph langchain-openai langsmith tavily-python
+Env vars: OPENAI_API_KEY, TAVILY_API_KEY, LANGCHAIN_TRACING_V2=true,
+          LANGCHAIN_API_KEY, LANGCHAIN_PROJECT=content-pipeline
+"""
+import operator
+from typing import Annotated, TypedDict
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage
+from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
+from langsmith import traceable
+from tavily import TavilyClient
+
+# ─── State Definition ───────────────────────────────────────────────────────
+
+class PipelineState(TypedDict):
+    topic: str
+    research: str
+    draft: str
+    feedback: str
+    revision_count: Annotated[int, operator.add]
+    final_article: str
+    status: str
+
+# ─── LLM Setup ──────────────────────────────────────────────────────────────
+
+llm = ChatOpenAI(model="gpt-4o", temperature=0.7)
+tavily = TavilyClient()
+
+# ─── Agent Nodes ─────────────────────────────────────────────────────────────
+
+@traceable(name="research_agent", run_type="chain")
+def research_agent(state: PipelineState) -> dict:
+    """Search for information on the topic and compile research notes."""
+    topic = state["topic"]
+
+    # Use Tavily to search the web
+    search_results = tavily.search(
+        query=topic,
+        max_results=5,
+        include_raw_content=False
+    )
+
+    # Compile research from search results
+    sources = []
+    for result in search_results.get("results", []):
+        sources.append(f"- {result['title']}: {result['content'][:200]}")
+
+    research_summary = llm.invoke([
+        SystemMessage(content="You are a research analyst. Summarize the following search results into clear, factual research notes. Include key statistics and quotes."),
+        HumanMessage(content=f"Topic: {topic}\n\nSearch Results:\n" + "\n".join(sources))
+    ])
+
+    return {"research": research_summary.content, "status": "researched"}
+
+
+@traceable(name="writer_agent", run_type="chain")
+def writer_agent(state: PipelineState) -> dict:
+    """Write an article draft based on the research."""
+    feedback_context = ""
+    if state.get("feedback"):
+        feedback_context = f"\n\nPREVIOUS FEEDBACK TO ADDRESS:\n{state['feedback']}\n\nPREVIOUS DRAFT:\n{state['draft']}"
+
+    response = llm.invoke([
+        SystemMessage(content="""You are an expert content writer. Write a compelling, well-structured article.
+Rules:
+- Use clear headers (##) for sections
+- Include an engaging introduction and conclusion
+- Cite research findings naturally in the text
+- Keep paragraphs short (3-4 sentences max)
+- Total length: 500-800 words"""),
+        HumanMessage(content=f"Topic: {state['topic']}\n\nResearch Notes:\n{state['research']}{feedback_context}")
+    ])
+
+    return {"draft": response.content, "revision_count": 1, "status": "drafted"}
+
+
+@traceable(name="editor_agent", run_type="chain")
+def editor_agent(state: PipelineState) -> dict:
+    """Review the draft and provide feedback or approve."""
+    response = llm.invoke([
+        SystemMessage(content="""You are a senior editor. Review this article draft and decide:
+1. If quality is HIGH (clear, engaging, well-structured, factual) → respond ONLY with: APPROVED
+2. If quality needs improvement → provide specific, actionable feedback (max 3 bullet points)
+
+Be strict but fair. Articles must be publication-ready."""),
+        HumanMessage(content=f"Topic: {state['topic']}\n\nDraft:\n{state['draft']}")
+    ])
+
+    content = response.content.strip()
+
+    if "APPROVED" in content.upper() and len(content) < 50:
+        return {"feedback": "", "status": "approved"}
+    else:
+        return {"feedback": content, "status": "needs_revision"}
+
+
+@traceable(name="publisher_agent", run_type="chain")
+def publisher_agent(state: PipelineState) -> dict:
+    """Format the approved article for publication."""
+    response = llm.invoke([
+        SystemMessage(content="""You are a publishing formatter. Take this approved article and:
+1. Add a compelling title (# Title)
+2. Add a 1-sentence meta description
+3. Add 3-5 relevant tags
+4. Format with proper markdown
+5. Add a "Key Takeaways" section at the end (3 bullets)
+
+Output the final formatted article ready for publication."""),
+        HumanMessage(content=state["draft"])
+    ])
+
+    return {"final_article": response.content, "status": "published"}
+
+# ─── Routing Logic ───────────────────────────────────────────────────────────
+
+def should_continue_editing(state: PipelineState) -> str:
+    """Route based on editor decision — max 3 revisions."""
+    if state["status"] == "approved":
+        return "publish"
+    elif state.get("revision_count", 0) >= 3:
+        return "publish"  # Force publish after 3 revisions
+    else:
+        return "revise"
+
+# ─── Graph Construction ──────────────────────────────────────────────────────
+
+workflow = StateGraph(PipelineState)
+
+# Add nodes
+workflow.add_node("research", research_agent)
+workflow.add_node("write", writer_agent)
+workflow.add_node("edit", editor_agent)
+workflow.add_node("publish", publisher_agent)
+
+# Add edges
+workflow.set_entry_point("research")
+workflow.add_edge("research", "write")
+workflow.add_edge("write", "edit")
+
+# Conditional edge: editor can loop back to writer or proceed to publish
+workflow.add_conditional_edges(
+    "edit",
+    should_continue_editing,
+    {"revise": "write", "publish": "publish"}
+)
+
+workflow.add_edge("publish", END)
+
+# Compile with checkpointing (enables human-in-the-loop)
+memory = MemorySaver()
+app = workflow.compile(
+    checkpointer=memory,
+    interrupt_before=["publish"]  # Human approval gate before publishing
+)
+
+# ─── Run the Pipeline ────────────────────────────────────────────────────────
+
+def run_pipeline(topic: str) -> str:
+    """Execute the full content pipeline with human approval."""
+    config = {"configurable": {"thread_id": "content-001"}}
+
+    # Start the pipeline — will pause before "publish"
+    result = app.invoke(
+        {"topic": topic, "revision_count": 0},
+        config=config
+    )
+
+    print(f"\n{'='*60}")
+    print(f"Pipeline paused for human approval.")
+    print(f"Status: {result['status']}")
+    print(f"Revisions: {result['revision_count']}")
+    print(f"{'='*60}")
+    print(f"\nDraft preview:\n{result['draft'][:500]}...")
+
+    # Simulate human approval (in production, this waits for API call)
+    approval = input("\n\nApprove for publication? (yes/no): ")
+
+    if approval.lower() == "yes":
+        # Resume the pipeline
+        final = app.invoke(None, config=config)
+        print(f"\n\n{'='*60}")
+        print("PUBLISHED!")
+        print(f"{'='*60}")
+        print(final["final_article"])
+        return final["final_article"]
+    else:
+        print("Publication cancelled.")
+        return ""
+
+if __name__ == "__main__":
+    article = run_pipeline("The impact of AI agents on software development in 2025")</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Example Output -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-8 fade-in">
+      <h3 class="text-xl font-bold text-white mb-4">Example Execution Output</h3>
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+        <pre><code class="text-sm text-gray-300">$ python content_pipeline.py
+
+[Research Agent] Searching for: "The impact of AI agents on software development in 2025"
+[Research Agent] Found 5 sources, compiling notes...
+[Writer Agent] Creating draft from research (attempt 1)...
+[Editor Agent] Reviewing draft...
+[Editor Agent] Feedback:
+  - Add more specific statistics about productivity gains
+  - The introduction is too generic, start with a compelling hook
+  - Include a counterpoint about risks/limitations
+[Writer Agent] Revising draft (attempt 2)...
+[Editor Agent] Reviewing revision...
+[Editor Agent] APPROVED
+
+============================================================
+Pipeline paused for human approval.
+Status: approved
+Revisions: 2
+============================================================
+
+Draft preview:
+## How AI Agents Are Reshaping Software Development
+
+In March 2025, a solo developer shipped a production-ready SaaS app
+in 48 hours — a project that would have taken a team of three an
+estimated two weeks. The secret? An orchestrated team of AI agents
+handling everything from architecture decisions to test generation...
+
+Approve for publication? (yes/no): yes
+
+============================================================
+PUBLISHED!
+============================================================
+# How AI Agents Are Reshaping Software Development in 2025
+...</code></pre>
+      </div>
+    </div>
+
+    <!-- Monitoring in LangSmith -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 fade-in">
+      <h3 class="text-xl font-bold text-white mb-4">Monitoring in LangSmith</h3>
+      <p class="text-gray-300 mb-4">With <code class="text-accent-light">LANGCHAIN_TRACING_V2=true</code>, every run of this pipeline creates a detailed trace:</p>
+
+      <div class="bg-elevated rounded-xl p-4 border border-white/5 font-mono text-xs text-gray-400 mb-4">
+        <pre>
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Project: content-pipeline    │  Traces: 47  │  Avg: 12.3s  │  $0.18  │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ▼ content-001                     graph    14.2s    ✓ Success          │
+│    ├─▼ research_agent              chain     3.1s    ✓                  │
+│    │    ├─ tavily_search           tool      1.2s    5 results          │
+│    │    └─ summarize_research      llm       1.9s    800 tokens         │
+│    │                                                                    │
+│    ├─▼ writer_agent (attempt 1)    chain     4.2s    ✓                  │
+│    │    └─ generate_draft          llm       4.2s    1200 tokens        │
+│    │                                                                    │
+│    ├─▼ editor_agent                chain     2.1s    → needs_revision   │
+│    │    └─ review_draft            llm       2.1s    "Add statistics.." │
+│    │                                                                    │
+│    ├─▼ writer_agent (attempt 2)    chain     3.8s    ✓                  │
+│    │    └─ generate_draft          llm       3.8s    1400 tokens        │
+│    │                                                                    │
+│    ├─▼ editor_agent                chain     1.0s    → approved         │
+│    │                                                                    │
+│    └─▼ publisher_agent             chain     2.1s    ✓                  │
+│         └─ format_article          llm       2.1s    1600 tokens        │
+│                                                                         │
+│  Total tokens: 8,430  │  Total cost: $0.18  │  Revisions: 2           │
+└─────────────────────────────────────────────────────────────────────────┘</pre>
+      </div>
+
+      <div class="bg-accent/5 border border-accent/20 rounded-xl p-4">
+        <p class="text-sm text-gray-300"><strong class="text-accent-light">What to look for in production:</strong> Monitor average revision_count — if it creeps above 2.5, your writer prompt needs tuning. Track editor approval rate — below 40% on first pass means research quality is dropping. Set alerts for total pipeline cost above $0.50 (usually means infinite loops).</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECTION 3: Combining CLI + Programmatic Agents
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<section id="combining" class="py-20 px-6">
+  <div class="max-w-5xl mx-auto">
+
+    <!-- Section Header -->
+    <div class="text-center mb-16 fade-in">
+      <span class="inline-block px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase bg-accent/10 text-accent-light border border-accent/20 mb-4">Best of Both Worlds</span>
+      <h2 class="text-4xl md:text-5xl font-bold mb-4">
+        <span class="gradient-text">CLI + Programmatic</span> Agents
+      </h2>
+      <p class="text-gray-400 text-lg max-w-2xl mx-auto">Know when to use Claude Code (CLI) vs LangGraph (programmatic) — and how to combine them for maximum impact.</p>
+    </div>
+
+    <!-- When to Use CLI -->
+    <div class="grid md:grid-cols-2 gap-6 mb-8">
+      <div class="step-card bg-surface rounded-2xl border border-white/10 p-6 fade-in">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
+            <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          </div>
+          <h3 class="text-xl font-bold text-white">CLI Orchestration (Claude Code)</h3>
+        </div>
+        <p class="text-gray-300 text-sm mb-4">Best for <strong class="text-green-400">development-time</strong> tasks where a human is in the loop.</p>
+        <ul class="space-y-2 text-sm text-gray-300">
+          <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#x2713;</span> Building entire projects from specs</li>
+          <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#x2713;</span> Prototyping and exploring ideas</li>
+          <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#x2713;</span> Writing documentation</li>
+          <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#x2713;</span> Debugging complex issues</li>
+          <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#x2713;</span> One-shot code generation</li>
+          <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#x2713;</span> Refactoring and code reviews</li>
+          <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#x2713;</span> File system operations</li>
+          <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#x2713;</span> Multi-tool orchestration (git, npm, docker)</li>
+        </ul>
+      </div>
+
+      <div class="step-card bg-surface rounded-2xl border border-white/10 p-6 fade-in">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+            <svg class="w-5 h-5 text-accent-light" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
+          </div>
+          <h3 class="text-xl font-bold text-white">Programmatic (LangGraph)</h3>
+        </div>
+        <p class="text-gray-300 text-sm mb-4">Best for <strong class="text-accent-light">runtime</strong> systems that operate autonomously.</p>
+        <ul class="space-y-2 text-sm text-gray-300">
+          <li class="flex items-start gap-2"><span class="text-accent-light mt-0.5">&#x2713;</span> Production API endpoints</li>
+          <li class="flex items-start gap-2"><span class="text-accent-light mt-0.5">&#x2713;</span> User-facing chatbots and agents</li>
+          <li class="flex items-start gap-2"><span class="text-accent-light mt-0.5">&#x2713;</span> Persistent multi-turn workflows</li>
+          <li class="flex items-start gap-2"><span class="text-accent-light mt-0.5">&#x2713;</span> Background processing pipelines</li>
+          <li class="flex items-start gap-2"><span class="text-accent-light mt-0.5">&#x2713;</span> Scheduled automation</li>
+          <li class="flex items-start gap-2"><span class="text-accent-light mt-0.5">&#x2713;</span> Multi-agent collaboration systems</li>
+          <li class="flex items-start gap-2"><span class="text-accent-light mt-0.5">&#x2713;</span> Human-in-the-loop approval flows</li>
+          <li class="flex items-start gap-2"><span class="text-accent-light mt-0.5">&#x2713;</span> Scalable concurrent execution</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Decision Matrix -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-8 fade-in">
+      <h3 class="text-xl font-bold text-white mb-4">Decision Matrix</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-white/10">
+              <th class="text-left py-3 px-4 text-gray-400 font-medium">Criteria</th>
+              <th class="text-center py-3 px-4 text-green-400 font-medium">CLI (Claude Code)</th>
+              <th class="text-center py-3 px-4 text-accent-light font-medium">LangGraph</th>
+            </tr>
+          </thead>
+          <tbody class="text-gray-300">
+            <tr class="border-b border-white/5">
+              <td class="py-3 px-4 font-medium text-white">Cost per task</td>
+              <td class="py-3 px-4 text-center">$0.05 - $2.00</td>
+              <td class="py-3 px-4 text-center">$0.001 - $0.50</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="py-3 px-4 font-medium text-white">Latency</td>
+              <td class="py-3 px-4 text-center">10s - 5min</td>
+              <td class="py-3 px-4 text-center">1s - 30s</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="py-3 px-4 font-medium text-white">Flexibility</td>
+              <td class="py-3 px-4 text-center"><span class="text-green-400">&#9733;&#9733;&#9733;&#9733;&#9733;</span></td>
+              <td class="py-3 px-4 text-center"><span class="text-accent-light">&#9733;&#9733;&#9733;</span></td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="py-3 px-4 font-medium text-white">Persistence</td>
+              <td class="py-3 px-4 text-center">Session only</td>
+              <td class="py-3 px-4 text-center"><span class="text-accent-light">Built-in checkpointing</span></td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="py-3 px-4 font-medium text-white">Scalability</td>
+              <td class="py-3 px-4 text-center">1 user (you)</td>
+              <td class="py-3 px-4 text-center"><span class="text-accent-light">Millions of users</span></td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="py-3 px-4 font-medium text-white">Setup effort</td>
+              <td class="py-3 px-4 text-center"><span class="text-green-400">Zero (install & go)</span></td>
+              <td class="py-3 px-4 text-center">Medium (code + deploy)</td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="py-3 px-4 font-medium text-white">Determinism</td>
+              <td class="py-3 px-4 text-center">Low (creative)</td>
+              <td class="py-3 px-4 text-center"><span class="text-accent-light">High (graph-defined)</span></td>
+            </tr>
+            <tr class="border-b border-white/5">
+              <td class="py-3 px-4 font-medium text-white">Error handling</td>
+              <td class="py-3 px-4 text-center">AI self-corrects</td>
+              <td class="py-3 px-4 text-center"><span class="text-accent-light">Explicit retry logic</span></td>
+            </tr>
+            <tr>
+              <td class="py-3 px-4 font-medium text-white">Monitoring</td>
+              <td class="py-3 px-4 text-center">Terminal output</td>
+              <td class="py-3 px-4 text-center"><span class="text-accent-light">LangSmith dashboards</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- The Hybrid Pattern -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-8 fade-in">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-gold/20 flex items-center justify-center">
+          <svg class="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <h3 class="text-2xl font-bold text-white">The Hybrid Pattern</h3>
+      </div>
+
+      <p class="text-gray-300 mb-6">The most powerful approach: <strong class="text-gold">use CLI to BUILD the system</strong>, then <strong class="text-accent-light">LangGraph runs it autonomously</strong>, and <strong class="text-white">LangSmith monitors everything</strong>.</p>
+
+      <div class="relative">
+        <!-- Timeline -->
+        <div class="absolute left-6 top-0 bottom-0 w-0.5 bg-white/10"></div>
+
+        <!-- Phase 1 -->
+        <div class="relative pl-16 pb-8">
+          <div class="absolute left-4 w-5 h-5 rounded-full bg-green-500/20 border-2 border-green-400 top-1"></div>
+          <h4 class="text-lg font-semibold text-green-400 mb-1">Phase 1: Scaffold with CLI</h4>
+          <p class="text-gray-400 text-sm mb-2">Claude Code builds the project structure, writes the LangGraph agents, creates tests.</p>
+          <div class="code-block rounded-xl p-3 overflow-x-auto">
+            <pre><code class="text-xs text-gray-300">claude "Build a LangGraph agent that handles customer support for an
+e-commerce platform. It should classify intent, search FAQs, handle
+returns, and escalate to humans. Include full test suite."
+
+# Claude Code creates:
+# - src/agents/support_graph.py (LangGraph implementation)
+# - src/agents/nodes/ (individual agent nodes)
+# - src/tools/ (FAQ search, order lookup tools)
+# - tests/ (unit + integration tests)
+# - docker-compose.yml (for local dev)
+# - .env.example</code></pre>
+          </div>
+        </div>
+
+        <!-- Phase 2 -->
+        <div class="relative pl-16 pb-8">
+          <div class="absolute left-4 w-5 h-5 rounded-full bg-accent/20 border-2 border-accent-light top-1"></div>
+          <h4 class="text-lg font-semibold text-accent-light mb-1">Phase 2: LangGraph Runs in Production</h4>
+          <p class="text-gray-400 text-sm mb-2">The built system deploys and handles real user requests autonomously at scale.</p>
+          <div class="code-block rounded-xl p-3 overflow-x-auto">
+            <pre><code class="text-xs text-gray-300"># FastAPI endpoint powered by LangGraph
+from fastapi import FastAPI
+from src.agents.support_graph import support_agent
+
+app = FastAPI()
+
+@app.post("/api/support")
+async def handle_support(message: str, thread_id: str):
+    config = {"configurable": {"thread_id": thread_id}}
+    result = await support_agent.ainvoke(
+        {"messages": [HumanMessage(content=message)]},
+        config=config
+    )
+    return {"response": result["messages"][-1].content}</code></pre>
+          </div>
+        </div>
+
+        <!-- Phase 3 -->
+        <div class="relative pl-16 pb-8">
+          <div class="absolute left-4 w-5 h-5 rounded-full bg-gold/20 border-2 border-gold top-1"></div>
+          <h4 class="text-lg font-semibold text-gold mb-1">Phase 3: LangSmith Monitors</h4>
+          <p class="text-gray-400 text-sm mb-2">Every production request is traced. Dashboards show health. Alerts fire on anomalies.</p>
+          <div class="code-block rounded-xl p-3 overflow-x-auto">
+            <pre><code class="text-xs text-gray-300"># Automatic monitoring — just set env vars
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_PROJECT=support-agent-prod
+
+# LangSmith shows:
+# - 2,340 traces today
+# - Avg latency: 2.1s
+# - Error rate: 0.3%
+# - User satisfaction: 4.1/5
+# - Escalation rate: 12% (↓ from 18% last week)</code></pre>
+          </div>
+        </div>
+
+        <!-- Phase 4 -->
+        <div class="relative pl-16">
+          <div class="absolute left-4 w-5 h-5 rounded-full bg-purple-500/20 border-2 border-purple-400 top-1"></div>
+          <h4 class="text-lg font-semibold text-purple-400 mb-1">Phase 4: CLI Iterates Based on Data</h4>
+          <p class="text-gray-400 text-sm mb-2">Use Claude Code again to improve the system based on LangSmith insights.</p>
+          <div class="code-block rounded-xl p-3 overflow-x-auto">
+            <pre><code class="text-xs text-gray-300">claude "LangSmith shows our FAQ retrieval has 0.6 relevance score —
+users are asking questions our FAQ doesn't cover. Add a fallback that
+searches our knowledge base with semantic search. The top failing
+queries are: [paste from LangSmith]"
+
+# Claude Code updates the agent → redeploy → monitor again
+# Continuous improvement loop!</code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="bg-gradient-to-r from-accent/10 to-gold/10 rounded-2xl border border-white/10 p-6 fade-in">
+      <p class="text-center text-gray-300">
+        <strong class="text-white text-lg">TL;DR:</strong> CLI is your <span class="text-green-400 font-semibold">builder</span>, LangGraph is your <span class="text-accent-light font-semibold">runner</span>, LangSmith is your <span class="text-gold font-semibold">observer</span>. Together, they form a complete AI engineering workflow.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SECTION 4: Quick Reference Cheat Sheet
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<section id="quick-ref" class="py-20 px-6">
+  <div class="max-w-5xl mx-auto">
+
+    <!-- Section Header -->
+    <div class="text-center mb-16 fade-in">
+      <span class="inline-block px-4 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase bg-accent/10 text-accent-light border border-accent/20 mb-4">Reference</span>
+      <h2 class="text-4xl md:text-5xl font-bold mb-4">
+        <span class="gradient-text">Quick Reference</span> Cheat Sheet
+      </h2>
+      <p class="text-gray-400 text-lg max-w-2xl mx-auto">Everything you need in one place. Copy-paste ready patterns for LangChain, LangGraph, and LangSmith.</p>
+    </div>
+
+    <!-- Installation -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-8 fade-in">
+      <h3 class="text-xl font-bold text-white mb-4">Installation</h3>
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+        <pre><code class="text-sm text-gray-300"># Core LangChain
+pip install langchain langchain-core langchain-community
+
+# LLM Providers
+pip install langchain-openai langchain-anthropic langchain-google-genai
+
+# LangGraph (agent orchestration)
+pip install langgraph
+
+# LangSmith (observability — also installs with langchain)
+pip install langsmith
+
+# Common extras
+pip install tavily-python faiss-cpu chromadb tiktoken
+
+# All-in-one for this guide
+pip install langchain langchain-openai langgraph langsmith tavily-python</code></pre>
+      </div>
+    </div>
+
+    <!-- LangChain Patterns -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-8 fade-in">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-bold text-white">LangChain Core Patterns</h3>
+        <a href="https://python.langchain.com" target="_blank" class="text-xs text-accent-light hover:text-accent underline">python.langchain.com</a>
+      </div>
+
+      <div class="border border-white/10 rounded-xl overflow-hidden mb-4">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="w-full px-4 py-3 bg-elevated text-left text-sm font-medium text-gray-200 flex justify-between items-center">
+          <span>Common Imports</span><span class="text-accent">+</span>
+        </button>
+        <div class="hidden p-4 bg-surface/50">
+          <pre><code class="text-sm text-gray-300"># LLMs
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_anthropic import ChatAnthropic
+
+# Prompts
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+
+# Output parsers
+from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
+
+# Tools
+from langchain_core.tools import tool
+from langchain_community.tools.tavily_search import TavilySearchResults
+
+# RAG
+from langchain_community.vectorstores import FAISS
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import WebBaseLoader
+
+# Runnables
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda</code></pre>
+        </div>
+      </div>
+
+      <div class="border border-white/10 rounded-xl overflow-hidden mb-4">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="w-full px-4 py-3 bg-elevated text-left text-sm font-medium text-gray-200 flex justify-between items-center">
+          <span>LCEL Chain Patterns (LangChain Expression Language)</span><span class="text-accent">+</span>
+        </button>
+        <div class="hidden p-4 bg-surface/50">
+          <pre><code class="text-sm text-gray-300">from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
+from langchain_core.runnables import RunnablePassthrough, RunnableParallel
+
+llm = ChatOpenAI(model="gpt-4o-mini")
+
+# ─── Basic chain: prompt → llm → parse ───
+chain = (
+    ChatPromptTemplate.from_messages([
+        ("system", "You are a helpful assistant."),
+        ("human", "{input}")
+    ])
+    | llm
+    | StrOutputParser()
+)
+result = chain.invoke({"input": "Hello!"})
+
+# ─── Chain with structured output ───
+from pydantic import BaseModel, Field
+
+class MovieReview(BaseModel):
+    title: str = Field(description="Movie title")
+    rating: float = Field(description="Rating out of 10")
+    summary: str = Field(description="One-sentence summary")
+
+structured_llm = llm.with_structured_output(MovieReview)
+review = structured_llm.invoke("Review the movie Inception")
+# review.title → "Inception", review.rating → 9.2
+
+# ─── Parallel execution ───
+parallel_chain = RunnableParallel(
+    summary=ChatPromptTemplate.from_template("Summarize: {text}") | llm | StrOutputParser(),
+    keywords=ChatPromptTemplate.from_template("Extract 5 keywords from: {text}") | llm | StrOutputParser(),
+)
+result = parallel_chain.invoke({"text": "Long article text..."})
+# result["summary"], result["keywords"]
+
+# ─── RAG chain ───
+from langchain_community.vectorstores import FAISS
+from langchain_openai import OpenAIEmbeddings
+
+vectorstore = FAISS.from_texts(["doc1", "doc2"], OpenAIEmbeddings())
+retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+
+rag_chain = (
+    {"context": retriever, "question": RunnablePassthrough()}
+    | ChatPromptTemplate.from_template(
+        "Answer based on context:\n{context}\n\nQuestion: {question}"
+    )
+    | llm
+    | StrOutputParser()
+)
+answer = rag_chain.invoke("What is...?")</code></pre>
+        </div>
+      </div>
+
+      <div class="border border-white/10 rounded-xl overflow-hidden">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="w-full px-4 py-3 bg-elevated text-left text-sm font-medium text-gray-200 flex justify-between items-center">
+          <span>Tool Definition</span><span class="text-accent">+</span>
+        </button>
+        <div class="hidden p-4 bg-surface/50">
+          <pre><code class="text-sm text-gray-300">from langchain_core.tools import tool
+from pydantic import BaseModel, Field
+
+# Simple tool with decorator
+@tool
+def search_orders(order_id: str) -> str:
+    """Search for an order by its ID. Returns order status and details."""
+    # Your implementation here
+    return f"Order {order_id}: Shipped, arriving tomorrow"
+
+# Tool with complex input schema
+class WeatherInput(BaseModel):
+    city: str = Field(description="City name")
+    units: str = Field(default="celsius", description="Temperature units: celsius or fahrenheit")
+
+@tool(args_schema=WeatherInput)
+def get_weather(city: str, units: str = "celsius") -> str:
+    """Get current weather for a city."""
+    return f"Weather in {city}: 22°{'C' if units == 'celsius' else 'F'}, sunny"
+
+# Bind tools to LLM
+llm_with_tools = ChatOpenAI(model="gpt-4o").bind_tools([search_orders, get_weather])
+response = llm_with_tools.invoke("What's the weather in La Paz?")
+# response.tool_calls → [{"name": "get_weather", "args": {"city": "La Paz"}}]</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- LangGraph Patterns -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-8 fade-in">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-bold text-white">LangGraph Patterns</h3>
+        <a href="https://langchain-ai.github.io/langgraph" target="_blank" class="text-xs text-accent-light hover:text-accent underline">langchain-ai.github.io/langgraph</a>
+      </div>
+
+      <div class="border border-white/10 rounded-xl overflow-hidden mb-4">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="w-full px-4 py-3 bg-elevated text-left text-sm font-medium text-gray-200 flex justify-between items-center">
+          <span>Graph Construction Template</span><span class="text-accent">+</span>
+        </button>
+        <div class="hidden p-4 bg-surface/50">
+          <pre><code class="text-sm text-gray-300">from typing import TypedDict, Annotated
+from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
+
+# 1. Define State
+class AgentState(TypedDict):
+    messages: Annotated[list, operator.add]  # append-only
+    current_step: str
+    result: str
+
+# 2. Define Nodes (functions that take state, return partial state)
+def step_one(state: AgentState) -> dict:
+    return {"current_step": "one", "result": "did step one"}
+
+def step_two(state: AgentState) -> dict:
+    return {"current_step": "two", "result": "did step two"}
+
+# 3. Define Routing
+def router(state: AgentState) -> str:
+    if state["result"] == "needs_retry":
+        return "step_one"
+    return "step_two"
+
+# 4. Build Graph
+graph = StateGraph(AgentState)
+graph.add_node("step_one", step_one)
+graph.add_node("step_two", step_two)
+
+graph.set_entry_point("step_one")
+graph.add_conditional_edges("step_one", router, {"step_one": "step_one", "step_two": "step_two"})
+graph.add_edge("step_two", END)
+
+# 5. Compile
+memory = MemorySaver()
+app = graph.compile(checkpointer=memory)
+
+# 6. Run
+result = app.invoke(
+    {"messages": [], "current_step": "", "result": ""},
+    config={"configurable": {"thread_id": "123"}}
+)</code></pre>
+        </div>
+      </div>
+
+      <div class="border border-white/10 rounded-xl overflow-hidden mb-4">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="w-full px-4 py-3 bg-elevated text-left text-sm font-medium text-gray-200 flex justify-between items-center">
+          <span>ReAct Agent (Tool-Calling Loop)</span><span class="text-accent">+</span>
+        </button>
+        <div class="hidden p-4 bg-surface/50">
+          <pre><code class="text-sm text-gray-300">from langgraph.prebuilt import create_react_agent
+from langchain_openai import ChatOpenAI
+from langchain_core.tools import tool
+
+@tool
+def calculator(expression: str) -> str:
+    """Evaluate a math expression. Input should be a valid Python math expression."""
+    return str(eval(expression))
+
+@tool
+def search(query: str) -> str:
+    """Search the web for current information."""
+    # In production, use Tavily or similar
+    return f"Search results for: {query}"
+
+llm = ChatOpenAI(model="gpt-4o")
+
+# create_react_agent builds the full tool-calling loop for you
+agent = create_react_agent(
+    model=llm,
+    tools=[calculator, search],
+    state_modifier="You are a helpful research assistant. Use tools when needed."
+)
+
+# Run the agent
+from langchain_core.messages import HumanMessage
+
+result = agent.invoke({
+    "messages": [HumanMessage(content="What's 15% of the US GDP in 2024?")]
+})
+print(result["messages"][-1].content)</code></pre>
+        </div>
+      </div>
+
+      <div class="border border-white/10 rounded-xl overflow-hidden">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="w-full px-4 py-3 bg-elevated text-left text-sm font-medium text-gray-200 flex justify-between items-center">
+          <span>Human-in-the-Loop Pattern</span><span class="text-accent">+</span>
+        </button>
+        <div class="hidden p-4 bg-surface/50">
+          <pre><code class="text-sm text-gray-300">from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
+
+# Compile with interrupt_before to pause at a specific node
+app = workflow.compile(
+    checkpointer=MemorySaver(),
+    interrupt_before=["dangerous_action"]  # Pauses here
+)
+
+config = {"configurable": {"thread_id": "user-123"}}
+
+# First invoke — runs until interrupt point
+state = app.invoke({"input": "delete all records"}, config=config)
+# state is now paused before "dangerous_action"
+
+# Check what action the agent wants to take
+print(f"Agent wants to: {state['pending_action']}")
+
+# Option A: Approve — resume execution
+final = app.invoke(None, config=config)  # None means "continue"
+
+# Option B: Reject — modify state and resume
+app.update_state(config, {"pending_action": "cancelled"})
+final = app.invoke(None, config=config)
+
+# Option C: Provide new input
+app.update_state(config, {"input": "just list the records instead"})
+final = app.invoke(None, config=config)</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- LangSmith Patterns -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-8 fade-in">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xl font-bold text-white">LangSmith Patterns</h3>
+        <a href="https://docs.smith.langchain.com" target="_blank" class="text-xs text-accent-light hover:text-accent underline">docs.smith.langchain.com</a>
+      </div>
+
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+        <pre><code class="text-sm text-gray-300"># ─── Environment Setup ───
+# .env file:
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=lsv2_pt_xxxxxxxxxxxx
+LANGCHAIN_PROJECT=my-project
+LANGCHAIN_ENDPOINT=https://api.smith.langchain.com</code></pre>
+      </div>
+
+      <div class="border border-white/10 rounded-xl overflow-hidden mb-4">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="w-full px-4 py-3 bg-elevated text-left text-sm font-medium text-gray-200 flex justify-between items-center">
+          <span>@traceable Decorator</span><span class="text-accent">+</span>
+        </button>
+        <div class="hidden p-4 bg-surface/50">
+          <pre><code class="text-sm text-gray-300">from langsmith import traceable
+
+# Basic usage — function appears as a span in LangSmith
+@traceable(name="my_function", run_type="chain")
+def my_function(input: str) -> str:
+    # run_type options: "llm", "chain", "tool", "retriever", "embedding"
+    return process(input)
+
+# Nested traces create parent-child relationships automatically
+@traceable(name="parent_pipeline")
+def pipeline(query: str) -> dict:
+    research = do_research(query)    # child span 1
+    draft = write_draft(research)    # child span 2
+    return {"output": draft}
+
+# With metadata and tags for filtering
+@traceable(
+    name="process_order",
+    run_type="chain",
+    metadata={"version": "2.0", "team": "backend"},
+    tags=["production", "orders"]
+)
+def process_order(order_id: str) -> dict:
+    pass</code></pre>
+        </div>
+      </div>
+
+      <div class="border border-white/10 rounded-xl overflow-hidden">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="w-full px-4 py-3 bg-elevated text-left text-sm font-medium text-gray-200 flex justify-between items-center">
+          <span>Evaluation Template</span><span class="text-accent">+</span>
+        </button>
+        <div class="hidden p-4 bg-surface/50">
+          <pre><code class="text-sm text-gray-300">from langsmith import Client
+from langsmith.evaluation import evaluate
+from langsmith.schemas import Example, Run
+
+client = Client()
+
+# 1. Create dataset
+dataset = client.create_dataset("my-eval-set")
+client.create_example(
+    inputs={"question": "What is 2+2?"},
+    outputs={"answer": "4"},
+    dataset_id=dataset.id
+)
+
+# 2. Define target function
+def predict(inputs: dict) -> dict:
+    # Your LLM chain here
+    response = chain.invoke(inputs)
+    return {"answer": response}
+
+# 3. Define evaluator
+def correctness(run: Run, example: Example) -> dict:
+    predicted = run.outputs.get("answer", "")
+    expected = example.outputs.get("answer", "")
+    return {
+        "key": "correct",
+        "score": 1.0 if expected.lower() in predicted.lower() else 0.0
+    }
+
+# 4. Run evaluation
+results = evaluate(
+    predict,
+    data="my-eval-set",
+    evaluators=[correctness],
+    experiment_prefix="v2-test"
+)
+print(f"Score: {results.aggregate_metrics}")</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 fade-in">
+      <h3 class="text-xl font-bold text-white mb-4">Official Documentation Links</h3>
+      <div class="grid md:grid-cols-3 gap-4">
+        <a href="https://python.langchain.com" target="_blank" class="block bg-elevated rounded-xl p-4 border border-white/5 hover:border-accent/30 transition-colors">
+          <h4 class="font-semibold text-white mb-1">LangChain</h4>
+          <p class="text-xs text-gray-400 mb-2">python.langchain.com</p>
+          <p class="text-xs text-gray-300">Chains, prompts, RAG, tools, output parsers, integrations</p>
+        </a>
+        <a href="https://langchain-ai.github.io/langgraph" target="_blank" class="block bg-elevated rounded-xl p-4 border border-white/5 hover:border-accent/30 transition-colors">
+          <h4 class="font-semibold text-white mb-1">LangGraph</h4>
+          <p class="text-xs text-gray-400 mb-2">langchain-ai.github.io/langgraph</p>
+          <p class="text-xs text-gray-300">Graphs, state, checkpointing, streaming, deployment</p>
+        </a>
+        <a href="https://docs.smith.langchain.com" target="_blank" class="block bg-elevated rounded-xl p-4 border border-white/5 hover:border-accent/30 transition-colors">
+          <h4 class="font-semibold text-white mb-1">LangSmith</h4>
+          <p class="text-xs text-gray-400 mb-2">docs.smith.langchain.com</p>
+          <p class="text-xs text-gray-300">Tracing, evaluation, prompt hub, monitoring, datasets</p>
+        </a>
+      </div>
+
+      <div class="mt-6 bg-elevated rounded-xl p-4 border border-white/5">
+        <h4 class="font-semibold text-white mb-2">Additional Resources</h4>
+        <div class="grid md:grid-cols-2 gap-2 text-sm">
+          <a href="https://github.com/langchain-ai/langgraph/tree/main/examples" target="_blank" class="text-accent-light hover:text-accent">LangGraph Examples (GitHub)</a>
+          <a href="https://python.langchain.com/docs/how_to/" target="_blank" class="text-accent-light hover:text-accent">LangChain How-To Guides</a>
+          <a href="https://langchain-ai.github.io/langgraph/tutorials/" target="_blank" class="text-accent-light hover:text-accent">LangGraph Tutorials</a>
+          <a href="https://docs.smith.langchain.com/evaluation" target="_blank" class="text-accent-light hover:text-accent">LangSmith Evaluation Guide</a>
+          <a href="https://smith.langchain.com/hub" target="_blank" class="text-accent-light hover:text-accent">LangSmith Prompt Hub</a>
+          <a href="https://python.langchain.com/docs/integrations/" target="_blank" class="text-accent-light hover:text-accent">LangChain Integrations</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>

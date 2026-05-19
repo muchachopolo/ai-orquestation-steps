@@ -1,0 +1,1469 @@
+<section id="langgraph" class="py-20 px-6">
+  <div class="max-w-6xl mx-auto">
+
+    <!-- Section Header -->
+    <div class="text-center mb-16 fade-in">
+      <h2 class="text-4xl md:text-5xl font-bold mb-4">
+        <span class="gradient-text">LangGraph Deep Dive</span>
+      </h2>
+      <p class="text-gray-400 text-lg max-w-3xl mx-auto">
+        Build stateful, multi-actor AI applications as directed graphs. From simple chains to complex multi-agent orchestrations with human-in-the-loop control.
+      </p>
+    </div>
+
+    <!-- 1. What is LangGraph -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-10 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+          <span class="text-accent font-bold text-lg">1</span>
+        </div>
+        <h3 class="text-2xl font-bold text-white">What is LangGraph?</h3>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6">
+        <div>
+          <p class="text-gray-300 mb-4">
+            LangGraph is a framework for building <strong class="text-white">stateful, multi-actor applications</strong> with LLMs, structured as computational graphs. Unlike simple chain-based approaches, LangGraph gives you:
+          </p>
+          <ul class="space-y-2 text-gray-300">
+            <li class="flex items-start gap-2">
+              <span class="text-accent mt-1">&#9654;</span>
+              <span><strong class="text-white">Cycles &amp; Loops</strong> — Agents can iterate, retry, and self-correct</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-accent mt-1">&#9654;</span>
+              <span><strong class="text-white">Persistent State</strong> — Memory survives across interactions via checkpoints</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-accent mt-1">&#9654;</span>
+              <span><strong class="text-white">Human-in-the-Loop</strong> — Pause execution, get approval, resume</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-accent mt-1">&#9654;</span>
+              <span><strong class="text-white">Multi-Agent</strong> — Multiple specialized agents collaborating</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-elevated rounded-xl p-6 border border-white/10">
+          <h4 class="text-sm font-semibold text-accent-light uppercase tracking-wider mb-4">LangGraph vs LangChain Agents</h4>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-gray-400 border-b border-white/10">
+                <th class="text-left pb-2">Feature</th>
+                <th class="text-left pb-2">LangChain Agents</th>
+                <th class="text-left pb-2">LangGraph</th>
+              </tr>
+            </thead>
+            <tbody class="text-gray-300">
+              <tr class="border-b border-white/5">
+                <td class="py-2">Control Flow</td>
+                <td class="py-2">LLM decides</td>
+                <td class="py-2 text-accent">You define the graph</td>
+              </tr>
+              <tr class="border-b border-white/5">
+                <td class="py-2">State</td>
+                <td class="py-2">Limited</td>
+                <td class="py-2 text-accent">Full TypedDict state</td>
+              </tr>
+              <tr class="border-b border-white/5">
+                <td class="py-2">Cycles</td>
+                <td class="py-2">ReAct loop only</td>
+                <td class="py-2 text-accent">Arbitrary cycles</td>
+              </tr>
+              <tr class="border-b border-white/5">
+                <td class="py-2">Multi-Agent</td>
+                <td class="py-2">Manual wiring</td>
+                <td class="py-2 text-accent">Native support</td>
+              </tr>
+              <tr>
+                <td class="py-2">Persistence</td>
+                <td class="py-2">External</td>
+                <td class="py-2 text-accent">Built-in checkpoints</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Core Concepts -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-10 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+          <span class="text-accent font-bold text-lg">2</span>
+        </div>
+        <h3 class="text-2xl font-bold text-white">Core Concepts</h3>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-elevated rounded-xl p-5 border border-white/10 text-center">
+          <div class="text-3xl mb-3">&#128202;</div>
+          <h4 class="text-white font-semibold mb-2">StateGraph</h4>
+          <p class="text-gray-400 text-sm">The container that holds your entire graph definition. You add nodes and edges to it, then compile.</p>
+        </div>
+        <div class="bg-elevated rounded-xl p-5 border border-white/10 text-center">
+          <div class="text-3xl mb-3">&#9899;</div>
+          <h4 class="text-white font-semibold mb-2">Nodes</h4>
+          <p class="text-gray-400 text-sm">Python functions that receive state, perform work (LLM calls, tools, logic), and return state updates.</p>
+        </div>
+        <div class="bg-elevated rounded-xl p-5 border border-white/10 text-center">
+          <div class="text-3xl mb-3">&#10132;</div>
+          <h4 class="text-white font-semibold mb-2">Edges</h4>
+          <p class="text-gray-400 text-sm">Connections between nodes. Define the execution flow — which node runs after which.</p>
+        </div>
+        <div class="bg-elevated rounded-xl p-5 border border-white/10 text-center">
+          <div class="text-3xl mb-3">&#128256;</div>
+          <h4 class="text-white font-semibold mb-2">Conditional Edges</h4>
+          <p class="text-gray-400 text-sm">Routing functions that examine state and decide which node executes next. Enables branching logic.</p>
+        </div>
+        <div class="bg-elevated rounded-xl p-5 border border-white/10 text-center">
+          <div class="text-3xl mb-3">&#128451;</div>
+          <h4 class="text-white font-semibold mb-2">State (TypedDict)</h4>
+          <p class="text-gray-400 text-sm">A typed dictionary that flows through the graph. Each node reads and writes to it. Supports reducers for accumulation.</p>
+        </div>
+        <div class="bg-elevated rounded-xl p-5 border border-white/10 text-center">
+          <div class="text-3xl mb-3">&#128190;</div>
+          <h4 class="text-white font-semibold mb-2">Checkpoints</h4>
+          <p class="text-gray-400 text-sm">Snapshots of state at each step. Enable persistence, time-travel, and human-in-the-loop interrupts.</p>
+        </div>
+      </div>
+
+      <!-- Visual Graph Diagram -->
+      <div class="bg-elevated rounded-xl p-6 border border-white/10">
+        <h4 class="text-sm font-semibold text-accent-light uppercase tracking-wider mb-4">How It Flows Together</h4>
+        <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+<pre><code class="text-sm text-gray-300">
+    ┌─────────┐
+    │  START  │
+    └────┬────┘
+         │
+         ▼
+    ┌─────────┐      State: { messages: [], step: 0 }
+    │ Node A  │──────────────────────────────────────▶ Reads state, does work, returns updates
+    └────┬────┘
+         │
+         ▼
+    ┌──────────────┐
+    │ Conditional  │──── if state["needs_review"] ──▶ Node C (Review)
+    │    Edge      │
+    └──────┬───────┘
+           │ else
+           ▼
+    ┌─────────┐
+    │ Node B  │──────────────────────────────────────▶ Final processing
+    └────┬────┘
+         │
+         ▼
+    ┌─────────┐
+    │   END   │      Checkpoint saved at each step!
+    └─────────┘
+</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 1: First Graph -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-10 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+          <span class="text-accent font-bold text-lg">3</span>
+        </div>
+        <h3 class="text-2xl font-bold text-white">Step 1: Your First Graph</h3>
+      </div>
+
+      <p class="text-gray-300 mb-6">
+        Let's build a simple two-node graph that takes a topic, generates a joke about it, then rates the joke. This shows the fundamental pattern: define state, create nodes, wire edges, compile, invoke.
+      </p>
+
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+<pre><code class="text-sm text-gray-300">from typing import TypedDict
+from langgraph.graph import StateGraph, START, END
+from langchain_openai import ChatOpenAI
+
+# 1. Define the State schema
+class JokeState(TypedDict):
+    topic: str
+    joke: str
+    rating: str
+
+# 2. Initialize the LLM
+llm = ChatOpenAI(model="gpt-4o-mini")
+
+# 3. Define node functions (each receives full state, returns partial update)
+def generate_joke(state: JokeState) -> dict:
+    """Node that generates a joke about the topic."""
+    msg = llm.invoke(f"Write a short, funny joke about: {state['topic']}")
+    return {"joke": msg.content}
+
+def rate_joke(state: JokeState) -> dict:
+    """Node that rates the generated joke."""
+    msg = llm.invoke(f"Rate this joke from 1-10 and explain why:\n{state['joke']}")
+    return {"rating": msg.content}
+
+# 4. Build the graph
+graph = StateGraph(JokeState)
+
+# Add nodes
+graph.add_node("generate", generate_joke)
+graph.add_node("rate", rate_joke)
+
+# Add edges (define the flow)
+graph.add_edge(START, "generate")    # Start -> generate
+graph.add_edge("generate", "rate")   # generate -> rate
+graph.add_edge("rate", END)          # rate -> End
+
+# 5. Compile the graph
+app = graph.compile()
+
+# 6. Invoke it!
+result = app.invoke({"topic": "Python programming"})
+
+print(f"Topic: {result['topic']}")
+print(f"Joke: {result['joke']}")
+print(f"Rating: {result['rating']}")
+</code></pre>
+      </div>
+
+      <div class="bg-elevated rounded-xl p-4 border border-white/10">
+        <h4 class="text-sm font-semibold text-gold mb-2">Output Example:</h4>
+        <div class="code-block rounded-xl p-4 overflow-x-auto">
+<pre><code class="text-sm text-gray-300">Topic: Python programming
+Joke: Why do Python programmers prefer dark mode? Because light attracts bugs!
+Rating: 7/10 - Classic programming humor with a nice double meaning on "bugs".
+  Clean delivery, universal relatability among developers.
+</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: State Management -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-10 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+          <span class="text-accent font-bold text-lg">4</span>
+        </div>
+        <h3 class="text-2xl font-bold text-white">Step 2: State Management</h3>
+      </div>
+
+      <p class="text-gray-300 mb-4">
+        State is the backbone of LangGraph. It's a <code class="text-accent">TypedDict</code> that flows through every node. The key insight: <strong class="text-white">nodes return partial updates</strong>, not the full state. LangGraph merges updates intelligently.
+      </p>
+
+      <div class="grid md:grid-cols-2 gap-6 mb-6">
+        <div class="bg-elevated rounded-xl p-5 border border-white/10">
+          <h4 class="text-white font-semibold mb-3">Default Behavior (Overwrite)</h4>
+          <p class="text-gray-400 text-sm mb-3">By default, returning a key overwrites the previous value.</p>
+          <div class="code-block rounded-xl p-3 overflow-x-auto">
+<pre><code class="text-sm text-gray-300">class State(TypedDict):
+    query: str       # Overwritten each time
+    answer: str      # Overwritten each time
+
+# Node returns {"answer": "new"}
+# -> state["answer"] becomes "new"</code></pre>
+          </div>
+        </div>
+
+        <div class="bg-elevated rounded-xl p-5 border border-white/10">
+          <h4 class="text-white font-semibold mb-3">Reducer Behavior (Accumulate)</h4>
+          <p class="text-gray-400 text-sm mb-3">Use <code class="text-accent">Annotated</code> with a reducer to accumulate values.</p>
+          <div class="code-block rounded-xl p-3 overflow-x-auto">
+<pre><code class="text-sm text-gray-300">from typing import Annotated
+import operator
+
+class State(TypedDict):
+    messages: Annotated[list, operator.add]
+
+# Node returns {"messages": ["new msg"]}
+# -> appends to existing list!</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <h4 class="text-white font-semibold mb-3">Multi-Step Research Agent State</h4>
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+<pre><code class="text-sm text-gray-300">from typing import TypedDict, Annotated, Literal
+import operator
+from langgraph.graph import StateGraph, START, END
+
+class ResearchState(TypedDict):
+    # The original research question
+    question: str
+    # Search queries generated (accumulates via reducer)
+    search_queries: Annotated[list[str], operator.add]
+    # Raw search results (accumulates)
+    search_results: Annotated[list[dict], operator.add]
+    # Refined analysis at each step (overwrites)
+    current_analysis: str
+    # Number of research iterations completed
+    iteration: int
+    # Final synthesized answer
+    final_answer: str
+
+def plan_searches(state: ResearchState) -> dict:
+    """Generate search queries based on the question and current analysis."""
+    # LLM generates 2-3 search queries
+    queries = generate_search_queries(state["question"], state.get("current_analysis", ""))
+    return {
+        "search_queries": queries,  # Appended to list!
+        "iteration": state.get("iteration", 0) + 1  # Overwrites
+    }
+
+def execute_searches(state: ResearchState) -> dict:
+    """Run the latest search queries and collect results."""
+    latest_queries = state["search_queries"][-3:]  # Last 3 queries
+    results = [search(q) for q in latest_queries]
+    return {"search_results": results}  # Appended to list!
+
+def analyze(state: ResearchState) -> dict:
+    """Synthesize all results into current analysis."""
+    analysis = llm.invoke(
+        f"Analyze these results for: {state['question']}\n"
+        f"Results: {state['search_results']}"
+    )
+    return {"current_analysis": analysis.content}  # Overwrites!
+
+def synthesize(state: ResearchState) -> dict:
+    """Create the final answer from all research."""
+    answer = llm.invoke(
+        f"Final answer for: {state['question']}\n"
+        f"Based on analysis: {state['current_analysis']}"
+    )
+    return {"final_answer": answer.content}
+
+# Build graph
+graph = StateGraph(ResearchState)
+graph.add_node("plan", plan_searches)
+graph.add_node("search", execute_searches)
+graph.add_node("analyze", analyze)
+graph.add_node("synthesize", synthesize)
+
+graph.add_edge(START, "plan")
+graph.add_edge("plan", "search")
+graph.add_edge("search", "analyze")
+# After analysis, decide: research more or synthesize
+graph.add_conditional_edges("analyze", should_continue, {"continue": "plan", "done": "synthesize"})
+graph.add_edge("synthesize", END)
+
+app = graph.compile()
+</code></pre>
+      </div>
+
+      <div class="bg-elevated rounded-xl p-4 border border-white/10">
+        <p class="text-gray-400 text-sm">
+          <span class="text-gold font-semibold">Key Insight:</span> With <code class="text-accent">Annotated[list, operator.add]</code>, every node's list return gets <em>appended</em> to the existing state — perfect for accumulating messages, search results, or history. Without the annotation, the list would be <em>replaced</em> entirely.
+        </p>
+      </div>
+    </div>
+
+    <!-- Step 3: Conditional Routing -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-10 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+          <span class="text-accent font-bold text-lg">5</span>
+        </div>
+        <h3 class="text-2xl font-bold text-white">Step 3: Conditional Routing</h3>
+      </div>
+
+      <p class="text-gray-300 mb-4">
+        Conditional edges are where LangGraph becomes powerful. Instead of a fixed path, a <strong class="text-white">routing function</strong> examines the current state and decides which node runs next. This enables agents that adapt their behavior dynamically.
+      </p>
+
+      <div class="bg-elevated rounded-xl p-5 border border-white/10 mb-6">
+        <h4 class="text-sm font-semibold text-accent-light uppercase tracking-wider mb-3">How It Works</h4>
+        <ol class="space-y-2 text-gray-300 text-sm">
+          <li><span class="text-accent font-mono">1.</span> A node finishes execution and updates state</li>
+          <li><span class="text-accent font-mono">2.</span> LangGraph calls your routing function with the current state</li>
+          <li><span class="text-accent font-mono">3.</span> The routing function returns a <strong class="text-white">string</strong> — the name of the next node</li>
+          <li><span class="text-accent font-mono">4.</span> LangGraph routes execution to that node</li>
+        </ol>
+      </div>
+
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+<pre><code class="text-sm text-gray-300">from typing import TypedDict, Literal, Annotated
+import operator
+from langgraph.graph import StateGraph, START, END
+from langchain_openai import ChatOpenAI
+
+class AgentState(TypedDict):
+    query: str
+    messages: Annotated[list, operator.add]
+    intent: str
+    result: str
+
+llm = ChatOpenAI(model="gpt-4o-mini")
+
+# --- Nodes ---
+def classify_intent(state: AgentState) -> dict:
+    """Classify user query into: search, calculate, or respond."""
+    response = llm.invoke(
+        f"Classify this query into exactly one category: 'search', 'calculate', or 'respond'.\n"
+        f"Query: {state['query']}\n"
+        f"Return ONLY the category word."
+    )
+    intent = response.content.strip().lower()
+    return {"intent": intent, "messages": [f"Classified as: {intent}"]}
+
+def search_node(state: AgentState) -> dict:
+    """Handle search-type queries."""
+    result = llm.invoke(f"Search and answer: {state['query']}")
+    return {"result": result.content, "messages": ["Executed search"]}
+
+def calculate_node(state: AgentState) -> dict:
+    """Handle calculation queries."""
+    result = llm.invoke(f"Calculate and explain: {state['query']}")
+    return {"result": result.content, "messages": ["Executed calculation"]}
+
+def respond_node(state: AgentState) -> dict:
+    """Handle general conversation."""
+    result = llm.invoke(f"Respond conversationally: {state['query']}")
+    return {"result": result.content, "messages": ["Generated response"]}
+
+# --- Routing Function ---
+def route_by_intent(state: AgentState) -> Literal["search", "calculate", "respond"]:
+    """Route to the appropriate node based on classified intent."""
+    return state["intent"]
+
+# --- Build Graph ---
+graph = StateGraph(AgentState)
+
+graph.add_node("classify", classify_intent)
+graph.add_node("search", search_node)
+graph.add_node("calculate", calculate_node)
+graph.add_node("respond", respond_node)
+
+graph.add_edge(START, "classify")
+
+# Conditional routing after classification
+graph.add_conditional_edges(
+    "classify",              # Source node
+    route_by_intent,         # Routing function
+    {                        # Mapping: return value -> node name
+        "search": "search",
+        "calculate": "calculate",
+        "respond": "respond",
+    }
+)
+
+# All paths lead to END
+graph.add_edge("search", END)
+graph.add_edge("calculate", END)
+graph.add_edge("respond", END)
+
+app = graph.compile()
+
+# Test it
+result = app.invoke({"query": "What is 15% of 230?", "messages": []})
+print(result["intent"])   # "calculate"
+print(result["result"])   # "15% of 230 is 34.5..."
+</code></pre>
+      </div>
+    </div>
+
+    <!-- Step 4: Human-in-the-Loop -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-10 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+          <span class="text-accent font-bold text-lg">6</span>
+        </div>
+        <h3 class="text-2xl font-bold text-white">Step 4: Human-in-the-Loop</h3>
+      </div>
+
+      <p class="text-gray-300 mb-4">
+        LangGraph can <strong class="text-white">pause execution</strong> at any node, wait for human input or approval, then resume exactly where it left off. This is powered by checkpointing — the entire state is saved, so the graph can be resumed later (even in a different process).
+      </p>
+
+      <div class="grid md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-elevated rounded-xl p-4 border border-white/10">
+          <h4 class="text-accent font-mono text-sm mb-2">interrupt_before</h4>
+          <p class="text-gray-400 text-sm">Pause <em>before</em> a node executes. Human can modify state or approve.</p>
+        </div>
+        <div class="bg-elevated rounded-xl p-4 border border-white/10">
+          <h4 class="text-accent font-mono text-sm mb-2">interrupt_after</h4>
+          <p class="text-gray-400 text-sm">Pause <em>after</em> a node executes. Human can review output before continuing.</p>
+        </div>
+        <div class="bg-elevated rounded-xl p-4 border border-white/10">
+          <h4 class="text-accent font-mono text-sm mb-2">MemorySaver</h4>
+          <p class="text-gray-400 text-sm">In-memory checkpointer that saves state for resumption. Use DB savers in production.</p>
+        </div>
+      </div>
+
+      <div class="border border-white/10 rounded-xl overflow-hidden mb-4">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="w-full px-4 py-3 bg-elevated text-left text-sm font-medium text-gray-200 flex justify-between items-center">
+          <span>View Complete Code: Content Approval Workflow</span>
+          <span class="text-accent">+</span>
+        </button>
+        <div class="hidden p-4 bg-surface/50">
+<pre><code class="text-sm text-gray-300">from typing import TypedDict, Annotated, Literal
+import operator
+from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
+from langchain_openai import ChatOpenAI
+
+class ContentState(TypedDict):
+    topic: str
+    draft: str
+    feedback: str
+    approved: bool
+    final_content: str
+    messages: Annotated[list[str], operator.add]
+
+llm = ChatOpenAI(model="gpt-4o")
+
+def generate_draft(state: ContentState) -> dict:
+    """AI generates content draft."""
+    response = llm.invoke(
+        f"Write a blog post draft about: {state['topic']}\n"
+        f"Previous feedback: {state.get('feedback', 'None')}"
+    )
+    return {
+        "draft": response.content,
+        "messages": ["Draft generated - awaiting human review"]
+    }
+
+def revise_draft(state: ContentState) -> dict:
+    """Revise based on human feedback."""
+    response = llm.invoke(
+        f"Revise this draft based on feedback.\n"
+        f"Draft: {state['draft']}\n"
+        f"Feedback: {state['feedback']}"
+    )
+    return {
+        "draft": response.content,
+        "messages": ["Draft revised based on feedback"]
+    }
+
+def publish(state: ContentState) -> dict:
+    """Publish the approved content."""
+    return {
+        "final_content": state["draft"],
+        "messages": ["Content published!"]
+    }
+
+def check_approval(state: ContentState) -> Literal["publish", "revise"]:
+    """Route based on human approval."""
+    if state.get("approved", False):
+        return "publish"
+    return "revise"
+
+# Build graph
+graph = StateGraph(ContentState)
+graph.add_node("generate", generate_draft)
+graph.add_node("revise", revise_draft)
+graph.add_node("publish", publish)
+
+graph.add_edge(START, "generate")
+# After generate, pause for human review (interrupt_after)
+graph.add_conditional_edges("generate", check_approval, {"publish": "publish", "revise": "revise"})
+graph.add_conditional_edges("revise", check_approval, {"publish": "publish", "revise": "revise"})
+graph.add_edge("publish", END)
+
+# Compile with checkpointer and interrupt
+checkpointer = MemorySaver()
+app = graph.compile(
+    checkpointer=checkpointer,
+    interrupt_after=["generate", "revise"]  # Pause after these nodes
+)
+
+# --- Usage Flow ---
+config = {"configurable": {"thread_id": "content-review-1"}}
+
+# Step 1: Start the graph (will pause after "generate")
+result = app.invoke({"topic": "AI in Healthcare", "messages": []}, config)
+print("DRAFT:", result["draft"][:200], "...")
+print("--- Graph paused. Awaiting human review. ---")
+
+# Step 2: Human reviews and provides feedback
+# Update state with human input, then resume
+app.update_state(config, {
+    "feedback": "Make it more technical, add specific examples of AI diagnostics",
+    "approved": False
+})
+result = app.invoke(None, config)  # Resume! (pass None to continue)
+print("REVISED:", result["draft"][:200], "...")
+
+# Step 3: Human approves
+app.update_state(config, {"approved": True})
+result = app.invoke(None, config)  # Resume -> goes to "publish"
+print("PUBLISHED:", result["final_content"][:200])
+</code></pre>
+        </div>
+      </div>
+
+      <div class="bg-elevated rounded-xl p-4 border border-white/10">
+        <p class="text-gray-400 text-sm">
+          <span class="text-gold font-semibold">Production Tip:</span> In a real app, the <code class="text-accent">thread_id</code> would be stored in your database. When the human submits their review via a web form, your API endpoint would load the thread, call <code class="text-accent">update_state()</code>, then <code class="text-accent">invoke(None, config)</code> to resume.
+        </p>
+      </div>
+    </div>
+
+    <!-- Step 5: Multi-Agent Patterns -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-10 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+          <span class="text-accent font-bold text-lg">7</span>
+        </div>
+        <h3 class="text-2xl font-bold text-white">Step 5: Multi-Agent Patterns</h3>
+      </div>
+
+      <p class="text-gray-300 mb-6">
+        The <strong class="text-white">Supervisor Pattern</strong> is the most common multi-agent architecture. One "supervisor" agent decides which specialist agent should work next, creating a team of focused agents that collaborate.
+      </p>
+
+      <div class="bg-elevated rounded-xl p-6 border border-white/10 mb-6">
+        <h4 class="text-sm font-semibold text-accent-light uppercase tracking-wider mb-4">Supervisor Architecture</h4>
+        <div class="code-block rounded-xl p-4 overflow-x-auto">
+<pre><code class="text-sm text-gray-300">
+                    ┌──────────────┐
+                    │  Supervisor  │ ◄── Decides who works next
+                    └──────┬───────┘
+                           │
+              ┌────────────┼────────────┐
+              │            │            │
+              ▼            ▼            ▼
+        ┌──────────┐ ┌──────────┐ ┌──────────┐
+        │ Research │ │  Writer  │ │ Reviewer │
+        │  Agent   │ │  Agent   │ │  Agent   │
+        └──────────┘ └──────────┘ └──────────┘
+              │            │            │
+              └────────────┼────────────┘
+                           │
+                           ▼
+                    ┌──────────────┐
+                    │   FINISH     │
+                    └──────────────┘
+</code></pre>
+        </div>
+      </div>
+
+      <div class="border border-white/10 rounded-xl overflow-hidden mb-4">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="w-full px-4 py-3 bg-elevated text-left text-sm font-medium text-gray-200 flex justify-between items-center">
+          <span>View Complete Code: Supervisor Multi-Agent Team</span>
+          <span class="text-accent">+</span>
+        </button>
+        <div class="hidden p-4 bg-surface/50">
+<pre><code class="text-sm text-gray-300">from typing import TypedDict, Annotated, Literal
+import operator
+from langgraph.graph import StateGraph, START, END
+from langchain_openai import ChatOpenAI
+
+class TeamState(TypedDict):
+    task: str
+    messages: Annotated[list[str], operator.add]
+    research: str
+    draft: str
+    review: str
+    next_agent: str
+    iterations: int
+
+llm = ChatOpenAI(model="gpt-4o")
+
+# --- Supervisor ---
+def supervisor(state: TeamState) -> dict:
+    """Decide which agent should work next."""
+    response = llm.invoke(
+        f"You are a project supervisor. Given the current state, decide who works next.\n"
+        f"Task: {state['task']}\n"
+        f"Research done: {'Yes' if state.get('research') else 'No'}\n"
+        f"Draft written: {'Yes' if state.get('draft') else 'No'}\n"
+        f"Review done: {'Yes' if state.get('review') else 'No'}\n"
+        f"Iterations: {state.get('iterations', 0)}\n\n"
+        f"Choose exactly one: 'researcher', 'writer', 'reviewer', or 'FINISH'\n"
+        f"Return ONLY the choice."
+    )
+    next_agent = response.content.strip().lower()
+    return {"next_agent": next_agent, "messages": [f"Supervisor -> {next_agent}"]}
+
+# --- Specialist Agents ---
+def researcher(state: TeamState) -> dict:
+    """Research agent gathers information."""
+    response = llm.invoke(
+        f"You are a research specialist. Research this topic thoroughly:\n{state['task']}"
+    )
+    return {
+        "research": response.content,
+        "messages": ["Research completed"]
+    }
+
+def writer(state: TeamState) -> dict:
+    """Writer agent creates content based on research."""
+    response = llm.invoke(
+        f"You are a professional writer. Write content based on:\n"
+        f"Task: {state['task']}\n"
+        f"Research: {state['research']}\n"
+        f"Previous review feedback: {state.get('review', 'None')}"
+    )
+    return {
+        "draft": response.content,
+        "iterations": state.get("iterations", 0) + 1,
+        "messages": ["Draft written"]
+    }
+
+def reviewer(state: TeamState) -> dict:
+    """Reviewer agent evaluates the draft."""
+    response = llm.invoke(
+        f"You are a critical reviewer. Review this draft:\n{state['draft']}\n\n"
+        f"Provide specific feedback or say 'APPROVED' if it's ready."
+    )
+    return {"review": response.content, "messages": ["Review completed"]}
+
+# --- Routing ---
+def route_supervisor(state: TeamState) -> Literal["researcher", "writer", "reviewer", "FINISH"]:
+    return state["next_agent"]
+
+# --- Build Graph ---
+graph = StateGraph(TeamState)
+
+graph.add_node("supervisor", supervisor)
+graph.add_node("researcher", researcher)
+graph.add_node("writer", writer)
+graph.add_node("reviewer", reviewer)
+
+graph.add_edge(START, "supervisor")
+
+graph.add_conditional_edges("supervisor", route_supervisor, {
+    "researcher": "researcher",
+    "writer": "writer",
+    "reviewer": "reviewer",
+    "FINISH": END,
+})
+
+# All agents report back to supervisor
+graph.add_edge("researcher", "supervisor")
+graph.add_edge("writer", "supervisor")
+graph.add_edge("reviewer", "supervisor")
+
+app = graph.compile()
+
+# Run it
+result = app.invoke({
+    "task": "Write a technical blog post about WebSocket scaling strategies",
+    "messages": [],
+    "iterations": 0
+})
+
+print("Messages (flow):", result["messages"])
+print("\nFinal Draft:", result["draft"][:500])
+</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 6: Subgraphs -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-10 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+          <span class="text-accent font-bold text-lg">8</span>
+        </div>
+        <h3 class="text-2xl font-bold text-white">Step 6: Subgraphs</h3>
+      </div>
+
+      <p class="text-gray-300 mb-4">
+        Subgraphs let you compose complex systems from smaller, reusable graph modules. A parent graph can invoke a child graph as if it were a single node — perfect for encapsulating team workflows.
+      </p>
+
+      <div class="bg-elevated rounded-xl p-5 border border-white/10 mb-6">
+        <h4 class="text-sm font-semibold text-accent-light uppercase tracking-wider mb-3">Why Subgraphs?</h4>
+        <ul class="space-y-2 text-gray-300 text-sm">
+          <li class="flex items-start gap-2">
+            <span class="text-accent">&#8226;</span>
+            <span><strong class="text-white">Modularity</strong> — Each team/workflow is self-contained and testable independently</span>
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="text-accent">&#8226;</span>
+            <span><strong class="text-white">Reusability</strong> — Same subgraph can be used in multiple parent graphs</span>
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="text-accent">&#8226;</span>
+            <span><strong class="text-white">State Isolation</strong> — Subgraph has its own state schema; only mapped fields cross boundaries</span>
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="text-accent">&#8226;</span>
+            <span><strong class="text-white">Hierarchical Teams</strong> — A supervisor can delegate to an entire team (subgraph), not just one agent</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="border border-white/10 rounded-xl overflow-hidden mb-4">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="w-full px-4 py-3 bg-elevated text-left text-sm font-medium text-gray-200 flex justify-between items-center">
+          <span>View Complete Code: Development Pipeline with Code Review Subgraph</span>
+          <span class="text-accent">+</span>
+        </button>
+        <div class="hidden p-4 bg-surface/50">
+<pre><code class="text-sm text-gray-300">from typing import TypedDict, Annotated, Literal
+import operator
+from langgraph.graph import StateGraph, START, END
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(model="gpt-4o")
+
+# ============================================================
+# SUBGRAPH: Code Review Team
+# ============================================================
+class ReviewState(TypedDict):
+    code: str
+    review_comments: Annotated[list[str], operator.add]
+    security_passed: bool
+    style_passed: bool
+    approved: bool
+
+def security_review(state: ReviewState) -> dict:
+    """Check code for security issues."""
+    response = llm.invoke(
+        f"Review this code for security vulnerabilities. "
+        f"Reply 'PASS' or describe issues:\n{state['code']}"
+    )
+    passed = "pass" in response.content.lower()
+    return {
+        "security_passed": passed,
+        "review_comments": [f"Security: {response.content}"]
+    }
+
+def style_review(state: ReviewState) -> dict:
+    """Check code style and best practices."""
+    response = llm.invoke(
+        f"Review code style and best practices. "
+        f"Reply 'PASS' or describe issues:\n{state['code']}"
+    )
+    passed = "pass" in response.content.lower()
+    return {
+        "style_passed": passed,
+        "review_comments": [f"Style: {response.content}"]
+    }
+
+def review_decision(state: ReviewState) -> dict:
+    """Final review decision based on all checks."""
+    approved = state.get("security_passed", False) and state.get("style_passed", False)
+    return {
+        "approved": approved,
+        "review_comments": [f"Final decision: {'APPROVED' if approved else 'REJECTED'}"]
+    }
+
+# Build the review subgraph
+review_graph = StateGraph(ReviewState)
+review_graph.add_node("security", security_review)
+review_graph.add_node("style", style_review)
+review_graph.add_node("decision", review_decision)
+
+graph.add_edge(START, "security")
+review_graph.add_edge(START, "security")
+review_graph.add_edge("security", "style")
+review_graph.add_edge("style", "decision")
+review_graph.add_edge("decision", END)
+
+compiled_review = review_graph.compile()
+
+# ============================================================
+# PARENT GRAPH: Development Pipeline
+# ============================================================
+class DevState(TypedDict):
+    requirement: str
+    design: str
+    code: str
+    review_result: str
+    review_approved: bool
+    messages: Annotated[list[str], operator.add]
+
+def design_phase(state: DevState) -> dict:
+    """Architect designs the solution."""
+    response = llm.invoke(
+        f"Design a solution for: {state['requirement']}\n"
+        f"Provide architecture and approach."
+    )
+    return {"design": response.content, "messages": ["Design completed"]}
+
+def coding_phase(state: DevState) -> dict:
+    """Developer implements the design."""
+    response = llm.invoke(
+        f"Implement this design in Python:\n{state['design']}"
+    )
+    return {"code": response.content, "messages": ["Code written"]}
+
+def code_review_phase(state: DevState) -> dict:
+    """Invoke the review subgraph."""
+    # Run the compiled review subgraph
+    review_result = compiled_review.invoke({
+        "code": state["code"],
+        "review_comments": []
+    })
+    return {
+        "review_result": "\n".join(review_result["review_comments"]),
+        "review_approved": review_result["approved"],
+        "messages": ["Code review completed"]
+    }
+
+def deploy_phase(state: DevState) -> dict:
+    """Deploy the approved code."""
+    return {"messages": ["Code deployed successfully!"]}
+
+def fix_code(state: DevState) -> dict:
+    """Fix code based on review feedback."""
+    response = llm.invoke(
+        f"Fix this code based on review feedback:\n"
+        f"Code: {state['code']}\n"
+        f"Feedback: {state['review_result']}"
+    )
+    return {"code": response.content, "messages": ["Code fixed based on review"]}
+
+def route_after_review(state: DevState) -> Literal["deploy", "fix"]:
+    return "deploy" if state["review_approved"] else "fix"
+
+# Build parent graph
+parent_graph = StateGraph(DevState)
+parent_graph.add_node("design", design_phase)
+parent_graph.add_node("code", coding_phase)
+parent_graph.add_node("review", code_review_phase)
+parent_graph.add_node("deploy", deploy_phase)
+parent_graph.add_node("fix", fix_code)
+
+parent_graph.add_edge(START, "design")
+parent_graph.add_edge("design", "code")
+parent_graph.add_edge("code", "review")
+parent_graph.add_conditional_edges("review", route_after_review, {
+    "deploy": "deploy",
+    "fix": "fix"
+})
+parent_graph.add_edge("fix", "review")  # Re-review after fix
+parent_graph.add_edge("deploy", END)
+
+pipeline = parent_graph.compile()
+
+# Run the full pipeline
+result = pipeline.invoke({
+    "requirement": "Build a REST API endpoint for user authentication with JWT tokens",
+    "messages": []
+})
+print("Flow:", result["messages"])
+print("Approved:", result["review_approved"])
+</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 7: Streaming -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-10 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+          <span class="text-accent font-bold text-lg">9</span>
+        </div>
+        <h3 class="text-2xl font-bold text-white">Step 7: Streaming</h3>
+      </div>
+
+      <p class="text-gray-300 mb-4">
+        LangGraph supports streaming graph execution in real-time. Instead of waiting for the entire graph to finish, you can observe state updates as each node completes — critical for responsive UIs.
+      </p>
+
+      <div class="grid md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-elevated rounded-xl p-4 border border-white/10">
+          <h4 class="text-accent font-mono text-sm mb-2">stream_mode="values"</h4>
+          <p class="text-gray-400 text-sm">Emits the <strong>full state</strong> after each node completes. Best for debugging.</p>
+        </div>
+        <div class="bg-elevated rounded-xl p-4 border border-white/10">
+          <h4 class="text-accent font-mono text-sm mb-2">stream_mode="updates"</h4>
+          <p class="text-gray-400 text-sm">Emits only the <strong>state delta</strong> (what changed). Efficient for large states.</p>
+        </div>
+        <div class="bg-elevated rounded-xl p-4 border border-white/10">
+          <h4 class="text-accent font-mono text-sm mb-2">stream_mode="messages"</h4>
+          <p class="text-gray-400 text-sm">Streams <strong>LLM tokens</strong> as they're generated. Best for chat UIs.</p>
+        </div>
+      </div>
+
+      <div class="code-block rounded-xl p-4 overflow-x-auto mb-4">
+<pre><code class="text-sm text-gray-300">from typing import TypedDict, Annotated
+import operator
+from langgraph.graph import StateGraph, START, END
+from langchain_openai import ChatOpenAI
+
+class StreamState(TypedDict):
+    topic: str
+    outline: str
+    content: str
+    messages: Annotated[list[str], operator.add]
+
+llm = ChatOpenAI(model="gpt-4o-mini", streaming=True)
+
+def create_outline(state: StreamState) -> dict:
+    response = llm.invoke(f"Create a brief outline for: {state['topic']}")
+    return {"outline": response.content, "messages": ["Outline created"]}
+
+def write_content(state: StreamState) -> dict:
+    response = llm.invoke(f"Write content based on this outline:\n{state['outline']}")
+    return {"content": response.content, "messages": ["Content written"]}
+
+graph = StateGraph(StreamState)
+graph.add_node("outline", create_outline)
+graph.add_node("write", write_content)
+graph.add_edge(START, "outline")
+graph.add_edge("outline", "write")
+graph.add_edge("write", END)
+
+app = graph.compile()
+
+# --- Streaming: values mode (full state after each node) ---
+print("=== Stream Mode: values ===")
+for state_snapshot in app.stream(
+    {"topic": "Quantum Computing", "messages": []},
+    stream_mode="values"
+):
+    print(f"State keys updated: {list(state_snapshot.keys())}")
+
+# --- Streaming: updates mode (only deltas) ---
+print("\n=== Stream Mode: updates ===")
+for node_name, update in app.stream(
+    {"topic": "Quantum Computing", "messages": []},
+    stream_mode="updates"
+):
+    print(f"Node '{node_name}' produced: {list(update.keys())}")
+
+# --- Async streaming with token-by-token output ---
+import asyncio
+
+async def stream_tokens():
+    print("\n=== Async Stream: messages (token-by-token) ===")
+    async for event in app.astream_events(
+        {"topic": "Quantum Computing", "messages": []},
+        version="v2"
+    ):
+        if event["event"] == "on_chat_model_stream":
+            token = event["data"]["chunk"].content
+            if token:
+                print(token, end="", flush=True)
+
+asyncio.run(stream_tokens())
+</code></pre>
+      </div>
+    </div>
+
+    <!-- Step 8: Persistence -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-10 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+          <span class="text-accent font-bold text-lg">10</span>
+        </div>
+        <h3 class="text-2xl font-bold text-white">Step 8: Persistence &amp; Time-Travel</h3>
+      </div>
+
+      <p class="text-gray-300 mb-4">
+        Checkpointers save the graph state after every node execution. This enables: resuming interrupted workflows, conversation memory across sessions, and <strong class="text-white">time-travel debugging</strong> — replaying execution from any previous checkpoint.
+      </p>
+
+      <div class="grid md:grid-cols-2 gap-4 mb-6">
+        <div class="bg-elevated rounded-xl p-5 border border-white/10">
+          <h4 class="text-white font-semibold mb-3">Available Checkpointers</h4>
+          <ul class="space-y-2 text-sm">
+            <li class="flex items-center gap-2 text-gray-300">
+              <span class="w-2 h-2 rounded-full bg-gold"></span>
+              <code class="text-accent">MemorySaver</code> — In-memory, great for dev/testing
+            </li>
+            <li class="flex items-center gap-2 text-gray-300">
+              <span class="w-2 h-2 rounded-full bg-green-500"></span>
+              <code class="text-accent">SqliteSaver</code> — File-based, good for local persistence
+            </li>
+            <li class="flex items-center gap-2 text-gray-300">
+              <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+              <code class="text-accent">PostgresSaver</code> — Production-ready, scalable
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-elevated rounded-xl p-5 border border-white/10">
+          <h4 class="text-white font-semibold mb-3">Time-Travel Debugging</h4>
+          <p class="text-gray-400 text-sm mb-2">Every checkpoint stores:</p>
+          <ul class="space-y-1 text-sm text-gray-300">
+            <li>&#8226; Full state at that point</li>
+            <li>&#8226; Which node just executed</li>
+            <li>&#8226; Parent checkpoint reference</li>
+            <li>&#8226; Timestamp and metadata</li>
+          </ul>
+          <p class="text-gray-400 text-sm mt-2">You can "rewind" to any checkpoint and re-execute with different inputs.</p>
+        </div>
+      </div>
+
+      <div class="border border-white/10 rounded-xl overflow-hidden mb-4">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="w-full px-4 py-3 bg-elevated text-left text-sm font-medium text-gray-200 flex justify-between items-center">
+          <span>View Complete Code: Persistent Conversation Agent</span>
+          <span class="text-accent">+</span>
+        </button>
+        <div class="hidden p-4 bg-surface/50">
+<pre><code class="text-sm text-gray-300">from typing import TypedDict, Annotated
+import operator
+from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
+
+class ConversationState(TypedDict):
+    messages: Annotated[list[BaseMessage], operator.add]
+    summary: str
+
+llm = ChatOpenAI(model="gpt-4o-mini")
+
+def chatbot(state: ConversationState) -> dict:
+    """Process the conversation and generate a response."""
+    # Include summary for context if conversation is long
+    system_msg = ""
+    if state.get("summary"):
+        system_msg = f"Previous conversation summary: {state['summary']}\n\n"
+
+    response = llm.invoke(
+        system_msg + "\n".join([
+            f"{'Human' if isinstance(m, HumanMessage) else 'AI'}: {m.content}"
+            for m in state["messages"][-10:]  # Last 10 messages for context window
+        ])
+    )
+    return {"messages": [AIMessage(content=response.content)]}
+
+def should_summarize(state: ConversationState) -> str:
+    """Summarize if conversation is getting long."""
+    if len(state["messages"]) > 20:
+        return "summarize"
+    return "end"
+
+def summarize_conversation(state: ConversationState) -> dict:
+    """Compress older messages into a summary."""
+    old_messages = state["messages"][:-10]
+    summary_prompt = (
+        f"Summarize this conversation:\n"
+        + "\n".join([f"{type(m).__name__}: {m.content}" for m in old_messages])
+    )
+    response = llm.invoke(summary_prompt)
+    return {"summary": response.content}
+
+# Build graph
+graph = StateGraph(ConversationState)
+graph.add_node("chatbot", chatbot)
+graph.add_node("summarize", summarize_conversation)
+
+graph.add_edge(START, "chatbot")
+graph.add_conditional_edges("chatbot", should_summarize, {
+    "summarize": "summarize",
+    "end": END
+})
+graph.add_edge("summarize", END)
+
+# Compile with persistence
+checkpointer = MemorySaver()
+app = graph.compile(checkpointer=checkpointer)
+
+# --- Conversation Session 1 ---
+config = {"configurable": {"thread_id": "user-123-session"}}
+
+# First message
+result = app.invoke(
+    {"messages": [HumanMessage(content="Hi! I'm working on a Python project.")]},
+    config
+)
+print("AI:", result["messages"][-1].content)
+
+# Second message (state is persisted!)
+result = app.invoke(
+    {"messages": [HumanMessage(content="I need help with async programming.")]},
+    config
+)
+print("AI:", result["messages"][-1].content)
+
+# --- Time Travel: View all checkpoints ---
+print("\n=== Checkpoint History ===")
+for checkpoint in app.get_state_history(config):
+    print(f"  Step: {checkpoint.metadata.get('step', '?')} | "
+          f"Messages: {len(checkpoint.values.get('messages', []))} | "
+          f"ID: {checkpoint.config['configurable']['checkpoint_id'][:8]}...")
+
+# --- Time Travel: Replay from an earlier checkpoint ---
+history = list(app.get_state_history(config))
+if len(history) >= 2:
+    old_checkpoint = history[-2]  # Go back to first interaction
+    replay_config = old_checkpoint.config
+
+    # Resume from that point with a different message
+    result = app.invoke(
+        {"messages": [HumanMessage(content="Actually, help me with databases instead.")]},
+        replay_config
+    )
+    print("\nAlternate timeline AI:", result["messages"][-1].content)
+</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 9: Real Scenario - Software Development Team -->
+    <div class="step-card bg-surface rounded-2xl border border-white/10 p-8 mb-10 fade-in">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-accent to-gold flex items-center justify-center">
+          <span class="text-white font-bold text-lg">&#9733;</span>
+        </div>
+        <div>
+          <h3 class="text-2xl font-bold text-white">Real Scenario: Software Development Team</h3>
+          <p class="text-gray-400 text-sm">Complete multi-agent system with all concepts combined</p>
+        </div>
+      </div>
+
+      <p class="text-gray-300 mb-4">
+        This final example brings together everything: a full software development team with an Architect who designs solutions, a Developer who writes code, a Reviewer who can reject and request changes, conditional routing based on review results, and human approval before deployment.
+      </p>
+
+      <div class="grid md:grid-cols-4 gap-3 mb-6">
+        <div class="bg-elevated rounded-xl p-3 border border-accent/30 text-center">
+          <div class="text-accent text-xs font-semibold uppercase mb-1">Architect</div>
+          <p class="text-gray-400 text-xs">Designs solution</p>
+        </div>
+        <div class="bg-elevated rounded-xl p-3 border border-blue-500/30 text-center">
+          <div class="text-blue-400 text-xs font-semibold uppercase mb-1">Developer</div>
+          <p class="text-gray-400 text-xs">Writes code</p>
+        </div>
+        <div class="bg-elevated rounded-xl p-3 border border-gold/30 text-center">
+          <div class="text-gold text-xs font-semibold uppercase mb-1">Reviewer</div>
+          <p class="text-gray-400 text-xs">Reviews &amp; rejects</p>
+        </div>
+        <div class="bg-elevated rounded-xl p-3 border border-green-500/30 text-center">
+          <div class="text-green-400 text-xs font-semibold uppercase mb-1">Human</div>
+          <p class="text-gray-400 text-xs">Approves deploy</p>
+        </div>
+      </div>
+
+      <div class="border border-white/10 rounded-xl overflow-hidden mb-4">
+        <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="w-full px-4 py-3 bg-elevated text-left text-sm font-medium text-gray-200 flex justify-between items-center">
+          <span>View Complete Code: Full Software Development Team (~110 lines)</span>
+          <span class="text-accent">+</span>
+        </button>
+        <div class="hidden p-4 bg-surface/50">
+<pre><code class="text-sm text-gray-300">from typing import TypedDict, Annotated, Literal
+import operator
+from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
+from langchain_openai import ChatOpenAI
+
+# === State Definition ===
+class DevTeamState(TypedDict):
+    requirement: str
+    architecture: str
+    code: str
+    review_feedback: str
+    review_passed: bool
+    human_approved: bool
+    deploy_status: str
+    iteration_count: int
+    messages: Annotated[list[str], operator.add]
+
+llm = ChatOpenAI(model="gpt-4o")
+
+# === Agent Nodes ===
+def architect_agent(state: DevTeamState) -> dict:
+    """Architect designs the technical solution."""
+    feedback_context = ""
+    if state.get("review_feedback"):
+        feedback_context = f"\nAddress this review feedback in your design: {state['review_feedback']}"
+
+    response = llm.invoke(
+        f"You are a senior software architect. Design a solution for:\n"
+        f"{state['requirement']}\n{feedback_context}\n\n"
+        f"Provide: 1) Architecture overview 2) Key components 3) Data flow 4) Tech decisions"
+    )
+    return {
+        "architecture": response.content,
+        "messages": [f"[Architect] Solution designed (iteration {state.get('iteration_count', 0) + 1})"]
+    }
+
+def developer_agent(state: DevTeamState) -> dict:
+    """Developer implements the architecture."""
+    response = llm.invoke(
+        f"You are a senior developer. Implement this architecture in Python:\n"
+        f"Architecture: {state['architecture']}\n"
+        f"Requirement: {state['requirement']}\n\n"
+        f"Write clean, production-ready code with type hints and docstrings."
+    )
+    return {
+        "code": response.content,
+        "iteration_count": state.get("iteration_count", 0) + 1,
+        "messages": ["[Developer] Code implemented"]
+    }
+
+def reviewer_agent(state: DevTeamState) -> dict:
+    """Reviewer evaluates code quality, can reject."""
+    response = llm.invoke(
+        f"You are a strict code reviewer. Review this code:\n"
+        f"{state['code']}\n\n"
+        f"Check for: bugs, security issues, performance, best practices.\n"
+        f"Start your response with 'APPROVED:' or 'REJECTED:' followed by detailed feedback."
+    )
+    content = response.content
+    passed = content.upper().startswith("APPROVED")
+    return {
+        "review_feedback": content,
+        "review_passed": passed,
+        "messages": [f"[Reviewer] {'APPROVED' if passed else 'REJECTED'}: {content[:100]}..."]
+    }
+
+def deploy_agent(state: DevTeamState) -> dict:
+    """Deploy the approved code."""
+    return {
+        "deploy_status": "deployed_successfully",
+        "messages": ["[Deploy] Code deployed to production!"]
+    }
+
+# === Routing Functions ===
+def route_after_review(state: DevTeamState) -> Literal["deploy_gate", "architect"]:
+    """After review: if passed go to deploy gate, else back to architect."""
+    if state["review_passed"]:
+        return "deploy_gate"
+    # Limit iterations to prevent infinite loops
+    if state.get("iteration_count", 0) >= 3:
+        return "deploy_gate"  # Force through after 3 attempts
+    return "architect"
+
+def route_after_human(state: DevTeamState) -> Literal["deploy", "architect"]:
+    """After human review: deploy or send back for rework."""
+    if state.get("human_approved", False):
+        return "deploy"
+    return "architect"
+
+def deploy_gate(state: DevTeamState) -> dict:
+    """Gate node before deployment - human will review here."""
+    return {
+        "messages": ["[Gate] Code review passed. Awaiting human approval for deployment."]
+    }
+
+# === Build the Graph ===
+graph = StateGraph(DevTeamState)
+
+# Add all nodes
+graph.add_node("architect", architect_agent)
+graph.add_node("developer", developer_agent)
+graph.add_node("reviewer", reviewer_agent)
+graph.add_node("deploy_gate", deploy_gate)
+graph.add_node("deploy", deploy_agent)
+
+# Define edges
+graph.add_edge(START, "architect")
+graph.add_edge("architect", "developer")
+graph.add_edge("developer", "reviewer")
+
+# Conditional: after review
+graph.add_conditional_edges("reviewer", route_after_review, {
+    "deploy_gate": "deploy_gate",
+    "architect": "architect"
+})
+
+# Conditional: after human approval
+graph.add_conditional_edges("deploy_gate", route_after_human, {
+    "deploy": "deploy",
+    "architect": "architect"
+})
+
+graph.add_edge("deploy", END)
+
+# === Compile with checkpointer and human interrupt ===
+checkpointer = MemorySaver()
+app = graph.compile(
+    checkpointer=checkpointer,
+    interrupt_after=["deploy_gate"]  # Pause for human approval
+)
+
+# === Run the Pipeline ===
+config = {"configurable": {"thread_id": "feature-auth-jwt-001"}}
+
+# Start execution (will pause at deploy_gate after review passes)
+result = app.invoke(
+    {
+        "requirement": "Build a JWT authentication system with refresh tokens, "
+                       "rate limiting, and secure password hashing using bcrypt.",
+        "messages": [],
+        "iteration_count": 0
+    },
+    config
+)
+
+print("=== Execution paused at deploy gate ===")
+print("Messages:", result["messages"])
+print(f"Review passed: {result['review_passed']}")
+print(f"Iterations: {result['iteration_count']}")
+print("\n--- Human reviews the code and approves ---")
+
+# Human approves deployment
+app.update_state(config, {"human_approved": True})
+final_result = app.invoke(None, config)
+
+print("\n=== Final Result ===")
+print(f"Deploy status: {final_result['deploy_status']}")
+print(f"Total messages: {len(final_result['messages'])}")
+for msg in final_result["messages"]:
+    print(f"  {msg}")
+</code></pre>
+        </div>
+      </div>
+
+      <!-- Key Takeaways -->
+      <div class="bg-elevated rounded-xl p-6 border border-accent/20">
+        <h4 class="text-white font-semibold mb-4">Key Patterns Used in This Example</h4>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div class="flex items-start gap-3">
+            <span class="text-accent text-lg">&#10003;</span>
+            <div>
+              <p class="text-white text-sm font-medium">Conditional Routing</p>
+              <p class="text-gray-400 text-xs">Reviewer rejection sends code back to architect</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="text-accent text-lg">&#10003;</span>
+            <div>
+              <p class="text-white text-sm font-medium">Cycles</p>
+              <p class="text-gray-400 text-xs">Architect -> Developer -> Reviewer loop with max iterations</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="text-accent text-lg">&#10003;</span>
+            <div>
+              <p class="text-white text-sm font-medium">Human-in-the-Loop</p>
+              <p class="text-gray-400 text-xs">interrupt_after deploy_gate for human approval</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="text-accent text-lg">&#10003;</span>
+            <div>
+              <p class="text-white text-sm font-medium">Persistence</p>
+              <p class="text-gray-400 text-xs">MemorySaver enables pause/resume across requests</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="text-accent text-lg">&#10003;</span>
+            <div>
+              <p class="text-white text-sm font-medium">State Reducers</p>
+              <p class="text-gray-400 text-xs">Messages accumulate with operator.add</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="text-accent text-lg">&#10003;</span>
+            <div>
+              <p class="text-white text-sm font-medium">Guard Rails</p>
+              <p class="text-gray-400 text-xs">Max iteration limit prevents infinite loops</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary / What's Next -->
+    <div class="bg-gradient-to-r from-accent/10 to-gold/10 rounded-2xl border border-white/10 p-8 fade-in">
+      <h3 class="text-xl font-bold text-white mb-4">LangGraph Mastery Path</h3>
+      <div class="grid md:grid-cols-4 gap-4">
+        <div class="text-center">
+          <div class="text-2xl mb-2">&#128218;</div>
+          <p class="text-sm text-gray-300"><strong class="text-white">Foundations</strong><br>State, Nodes, Edges</p>
+        </div>
+        <div class="text-center">
+          <div class="text-2xl mb-2">&#128256;</div>
+          <p class="text-sm text-gray-300"><strong class="text-white">Control Flow</strong><br>Conditionals, Cycles</p>
+        </div>
+        <div class="text-center">
+          <div class="text-2xl mb-2">&#129309;</div>
+          <p class="text-sm text-gray-300"><strong class="text-white">Human + AI</strong><br>Interrupts, Checkpoints</p>
+        </div>
+        <div class="text-center">
+          <div class="text-2xl mb-2">&#127968;</div>
+          <p class="text-sm text-gray-300"><strong class="text-white">Production</strong><br>Multi-Agent, Streaming, Persistence</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
