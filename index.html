@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Orchestration Methodology — Building Products with Claude Code CLI</title>
+  <script src="https://cdn.tailwindcss.com/3.4.1"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            base: '#0f0f0f',
+            surface: '#1a1a1a',
+            elevated: '#252525',
+            hover: '#303030',
+            accent: '#6366f1',
+            'accent-light': '#818cf8',
+            'accent-subtle': 'rgba(99, 102, 241, 0.12)',
+            gold: '#f59e0b',
+            'gold-subtle': 'rgba(245, 158, 11, 0.12)',
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    code, pre { font-family: 'JetBrains Mono', monospace; }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #6366f1, #818cf8, #f59e0b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .step-card {
+      transition: all 0.3s ease;
+      border: 1px solid transparent;
+    }
+    .step-card:hover {
+      border-color: rgba(99, 102, 241, 0.3);
+      box-shadow: 0 0 30px rgba(99, 102, 241, 0.05);
+    }
+
+    .code-block {
+      background: #0d0d0d;
+      border: 1px solid #2a2a2a;
+    }
+
+    .timeline-line {
+      background: linear-gradient(180deg, #6366f1 0%, #f59e0b 100%);
+    }
+
+    .fade-in {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .prompt-bubble {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(99, 102, 241, 0.02));
+      border: 1px solid rgba(99, 102, 241, 0.2);
+    }
+
+    .response-bubble {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.02));
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .accordion-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s ease;
+    }
+    .accordion-content.open {
+      max-height: 2000px;
+    }
+
+    .nav-link.active {
+      color: #6366f1;
+      border-color: #6366f1;
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 5px rgba(99, 102, 241, 0.3); }
+      50% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.6); }
+    }
+    .glow { animation: pulse-glow 2s infinite; }
+
+    .scroll-indicator {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #6366f1, #f59e0b);
+      z-index: 100;
+      transition: width 0.1s linear;
+    }
+  </style>
+</head>
+<body class="bg-base text-white min-h-screen">
+  <!-- Scroll Progress -->
+  <div class="scroll-indicator" id="scrollIndicator"></div>
+
+  <!-- Navigation -->
+  <nav class="fixed top-0 left-0 right-0 bg-base/90 backdrop-blur-md border-b border-white/5 z-50">
+    <div class="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-accent flex items-center justify-center text-sm font-bold">AI</div>
+        <span class="font-semibold text-sm hidden sm:inline">Orchestration Guide</span>
+      </div>
+      <div class="flex gap-1 text-xs overflow-x-auto">
+        <a href="#what" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">What</a>
+        <a href="#philosophy" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">Philosophy</a>
+        <a href="#steps" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">Steps</a>
+        <a href="#claude-md" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">CLAUDE.md</a>
+        <a href="#prompts" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">Prompts</a>
+        <a href="#results" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">Results</a>
+        <a href="#quickstart" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">Quick Start</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <header class="pt-32 pb-20 px-6">
+    <div class="max-w-4xl mx-auto text-center">
+      <div class="inline-block px-4 py-1.5 rounded-full bg-accent-subtle text-accent-light text-xs font-medium mb-6">
+        Internal Team Guide
+      </div>
+      <h1 class="text-4xl sm:text-6xl font-bold mb-6 leading-tight">
+        How I Use <span class="gradient-text">Claude Code CLI</span><br>
+        to Build Entire Products
+      </h1>
+      <p class="text-lg text-gray-400 max-w-2xl mx-auto mb-8">
+        A step-by-step methodology for orchestrating AI agent teams to analyze business problems,
+        architect solutions, and implement full-stack applications autonomously.
+      </p>
+      <div class="flex flex-wrap justify-center gap-4 text-sm">
+        <div class="px-4 py-2 rounded-xl bg-surface border border-white/5">
+          <span class="text-accent-light font-mono">11 sprints</span>
+          <span class="text-gray-500 ml-2">implemented</span>
+        </div>
+        <div class="px-4 py-2 rounded-xl bg-surface border border-white/5">
+          <span class="text-gold font-mono">~20 prompts</span>
+          <span class="text-gray-500 ml-2">total input</span>
+        </div>
+        <div class="px-4 py-2 rounded-xl bg-surface border border-white/5">
+          <span class="text-green-400 font-mono">Full stack</span>
+          <span class="text-gray-500 ml-2">Laravel + React</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- What is Claude Code Section -->
+  <section id="what" class="py-16 px-6 border-b border-white/5">
+    <div class="max-w-4xl mx-auto">
+      <div class="grid md:grid-cols-2 gap-8">
+        <div>
+          <h2 class="text-2xl font-bold mb-4">What is Claude Code CLI?</h2>
+          <p class="text-gray-400 mb-4">A terminal-based AI assistant that can read your files, write code, run commands, and spawn sub-agents — all within your project directory.</p>
+          <p class="text-gray-400 mb-4">The key differentiator: it can orchestrate <strong class="text-white">multiple specialized agents in parallel</strong>, each with its own role, working on your codebase simultaneously.</p>
+          <p class="text-gray-400">Think of it as a CTO that can instantaneously spin up a full dev team on demand.</p>
+        </div>
+        <div class="space-y-3">
+          <h3 class="text-sm font-semibold text-accent-light uppercase tracking-wide mb-3">Prerequisites</h3>
+          <div class="flex items-center gap-3 p-3 rounded-xl bg-surface text-sm">
+            <span class="text-green-400">&#10003;</span>
+            <span class="text-gray-300">Claude Code CLI installed (<code class="text-accent-light text-xs">npm i -g @anthropic-ai/claude-code</code>)</span>
+          </div>
+          <div class="flex items-center gap-3 p-3 rounded-xl bg-surface text-sm">
+            <span class="text-green-400">&#10003;</span>
+            <span class="text-gray-300">Anthropic API key or Claude Max subscription</span>
+          </div>
+          <div class="flex items-center gap-3 p-3 rounded-xl bg-surface text-sm">
+            <span class="text-green-400">&#10003;</span>
+            <span class="text-gray-300">A clear business idea (no code needed yet)</span>
+          </div>
+          <div class="flex items-center gap-3 p-3 rounded-xl bg-surface text-sm">
+            <span class="text-green-400">&#10003;</span>
+            <span class="text-gray-300">Willingness to think like a product owner, not a coder</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Philosophy Section -->
+  <section id="philosophy" class="py-20 px-6">
+    <div class="max-w-4xl mx-auto">
+      <h2 class="text-3xl font-bold mb-4">The Core Philosophy</h2>
+      <p class="text-gray-400 mb-12 text-lg">You are the product owner and technical director. The AI is your development team.</p>
+
+      <div class="grid md:grid-cols-3 gap-6">
+        <div class="step-card rounded-2xl bg-surface p-6">
+          <div class="w-10 h-10 rounded-xl bg-accent-subtle flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-accent-light" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          </div>
+          <h3 class="font-semibold mb-2">Documentation First</h3>
+          <p class="text-sm text-gray-400">Never write code before documenting. Create business analysis, requirements, architecture, and agent orchestration rules before a single line of code.</p>
+        </div>
+
+        <div class="step-card rounded-2xl bg-surface p-6">
+          <div class="w-10 h-10 rounded-xl bg-gold-subtle flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+          </div>
+          <h3 class="font-semibold mb-2">Agent Teams, Not Solo</h3>
+          <p class="text-sm text-gray-400">Define specialized agents (architects, devs, QA) with strict roles. Architects design, devs implement, QA verifies. No shortcuts.</p>
+        </div>
+
+        <div class="step-card rounded-2xl bg-surface p-6">
+          <div class="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center mb-4">
+            <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+          </div>
+          <h3 class="font-semibold mb-2">Autonomous Execution</h3>
+          <p class="text-sm text-gray-400">Once documentation and rules are in place, tell the AI to execute without waiting for approval. Trust the process, not each step.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Steps Section -->
+  <section id="steps" class="py-20 px-6 bg-surface/50">
+    <div class="max-w-4xl mx-auto">
+      <h2 class="text-3xl font-bold mb-4">The 8-Step Process</h2>
+      <p class="text-gray-400 mb-12">From business idea to deployed product, this is the exact sequence I follow.</p>
+
+      <div class="relative">
+        <!-- Timeline line -->
+        <div class="hidden md:block absolute left-8 top-0 bottom-0 w-0.5 timeline-line rounded-full"></div>
+
+        <!-- Step 1 -->
+        <div class="fade-in relative md:pl-20 mb-12">
+          <div class="hidden md:flex absolute left-4 w-8 h-8 rounded-full bg-accent items-center justify-center text-sm font-bold glow">1</div>
+          <div class="step-card rounded-2xl bg-elevated p-6">
+            <div class="flex items-center gap-3 mb-3">
+              <span class="md:hidden inline-flex w-7 h-7 rounded-full bg-accent items-center justify-center text-xs font-bold">1</span>
+              <h3 class="text-xl font-semibold">Describe the Business Problem</h3>
+            </div>
+            <p class="text-gray-400 mb-4">Start by explaining the <strong class="text-white">real-world problem</strong> in natural language. Don't mention technology. Describe the pain point, the users, the context, and the opportunity.</p>
+            <div class="prompt-bubble rounded-xl p-4 text-sm">
+              <div class="flex items-center gap-2 mb-2 text-accent-light text-xs font-medium">
+                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                WHAT I TYPED
+              </div>
+              <p class="text-gray-300 italic">"We have this problem in our city: there's a huge gap between [service providers] and [customers]. The providers are hard to reach, and the customers need a way to access them conveniently. We want to build a platform that connects both sides through [delivery method]..."</p>
+            </div>
+            <div class="mt-3 text-xs text-gray-500">
+              <strong>Why it works:</strong> Claude analyzes the business domain, identifies actors (customers, providers, operators), understands constraints (payment methods, logistics, geographic limitations), and can then make informed architectural decisions.
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="fade-in relative md:pl-20 mb-12">
+          <div class="hidden md:flex absolute left-4 w-8 h-8 rounded-full bg-accent items-center justify-center text-sm font-bold">2</div>
+          <div class="step-card rounded-2xl bg-elevated p-6">
+            <div class="flex items-center gap-3 mb-3">
+              <span class="md:hidden inline-flex w-7 h-7 rounded-full bg-accent items-center justify-center text-xs font-bold">2</span>
+              <h3 class="text-xl font-semibold">Request Agent Orchestration Documentation</h3>
+            </div>
+            <p class="text-gray-400 mb-4">Before any code, ask Claude to create the rules for its own team. Define agent roles, the pipeline, and the unbreakable rules that prevent chaos.</p>
+            <div class="prompt-bubble rounded-xl p-4 text-sm">
+              <div class="flex items-center gap-2 mb-2 text-accent-light text-xs font-medium">
+                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                WHAT I TYPED
+              </div>
+              <p class="text-gray-300 italic">"Crea documentacion para la orquestacion de agentes de IA que realizen el trabajo donde tendras varios arquitectos que validen cada paso, agents devs frontend y backend y automators en playwright. Esta orquestacion debe realizarse siempre para cada feature e implementacion y nunca evitar el uso de tu equipo de agentes."</p>
+            </div>
+            <div class="response-bubble rounded-xl p-4 text-sm mt-3">
+              <div class="flex items-center gap-2 mb-2 text-gold text-xs font-medium">
+                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                CLAUDE GENERATES
+              </div>
+              <p class="text-gray-300">Creates <code class="text-accent-light bg-accent-subtle px-1.5 py-0.5 rounded">docs/06-AGENT-ORCHESTRATION.md</code> with full pipeline definition, agent roles, prompt templates, and verification criteria.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="fade-in relative md:pl-20 mb-12">
+          <div class="hidden md:flex absolute left-4 w-8 h-8 rounded-full bg-accent items-center justify-center text-sm font-bold">3</div>
+          <div class="step-card rounded-2xl bg-elevated p-6">
+            <div class="flex items-center gap-3 mb-3">
+              <span class="md:hidden inline-flex w-7 h-7 rounded-full bg-accent items-center justify-center text-xs font-bold">3</span>
+              <h3 class="text-xl font-semibold">Make Key Technical & UX Decisions</h3>
+            </div>
+            <p class="text-gray-400 mb-4">Feed critical constraints in short bursts. Each one becomes part of the permanent project memory (CLAUDE.md). These are the decisions that shape everything.</p>
+            <div class="space-y-3">
+              <div class="prompt-bubble rounded-xl p-3 text-sm">
+                <p class="text-gray-300 italic">"Todo el sistema debe ser touch-first, mobile-first, progressive web app instalable en dispositivo movil"</p>
+              </div>
+              <div class="prompt-bubble rounded-xl p-3 text-sm">
+                <p class="text-gray-300 italic">"Tiene que tener una UI moderna con dark theme"</p>
+              </div>
+              <div class="prompt-bubble rounded-xl p-3 text-sm">
+                <p class="text-gray-300 italic">"Me pregunto si es mas eficiente tener toda la documentacion en ingles?"</p>
+              </div>
+            </div>
+            <div class="mt-4 text-xs text-gray-500">
+              <strong>Key insight:</strong> Each short message adds a constraint to the project. Claude incorporates them into the CLAUDE.md file which ALL agents read before doing work. This is how you enforce consistency across an AI team.
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="fade-in relative md:pl-20 mb-12">
+          <div class="hidden md:flex absolute left-4 w-8 h-8 rounded-full bg-accent items-center justify-center text-sm font-bold">4</div>
+          <div class="step-card rounded-2xl bg-elevated p-6">
+            <div class="flex items-center gap-3 mb-3">
+              <span class="md:hidden inline-flex w-7 h-7 rounded-full bg-accent items-center justify-center text-xs font-bold">4</span>
+              <h3 class="text-xl font-semibold">Invoke Architect Agents for Review</h3>
+            </div>
+            <p class="text-gray-400 mb-4">Ask the AI to spawn architect sub-agents that validate the documentation against business logic, technical feasibility, and UX principles.</p>
+            <div class="prompt-bubble rounded-xl p-4 text-sm">
+              <div class="flex items-center gap-2 mb-2 text-accent-light text-xs font-medium">
+                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                WHAT I TYPED
+              </div>
+              <p class="text-gray-300 italic">"Levanta a tus arquitectos que revisen la documentacion y que agreguen cualquier mejora que vean necesario segun el negocio"</p>
+            </div>
+            <div class="response-bubble rounded-xl p-4 text-sm mt-3">
+              <div class="flex items-center gap-2 mb-2 text-gold text-xs font-medium">
+                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                CLAUDE DOES
+              </div>
+              <p class="text-gray-300">Spawns 3 parallel agents (Backend Architect, Frontend Architect, System Architect). They review all docs, add improvements, validate the color system for the target market, suggest security measures, and update documentation.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 5 -->
+        <div class="fade-in relative md:pl-20 mb-12">
+          <div class="hidden md:flex absolute left-4 w-8 h-8 rounded-full bg-gold items-center justify-center text-sm font-bold text-black">5</div>
+          <div class="step-card rounded-2xl bg-elevated p-6 border border-gold/20">
+            <div class="flex items-center gap-3 mb-3">
+              <span class="md:hidden inline-flex w-7 h-7 rounded-full bg-gold items-center justify-center text-xs font-bold text-black">5</span>
+              <h3 class="text-xl font-semibold">The Magic Prompt: Autonomous Execution</h3>
+              <span class="px-2 py-0.5 rounded-full bg-gold-subtle text-gold text-xs font-medium">KEY MOMENT</span>
+            </div>
+            <p class="text-gray-400 mb-4">This is where the real power is. Once docs are solid and agents are defined, you tell Claude to execute the entire plan without stopping for approval.</p>
+            <div class="prompt-bubble rounded-xl p-4 text-sm border-gold/30">
+              <div class="flex items-center gap-2 mb-2 text-accent-light text-xs font-medium">
+                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                WHAT I TYPED
+              </div>
+              <p class="text-gray-300 italic text-base">"Comenza todo el trabajo con tu equipo de agents sin parar, no esperes por mi aprobacion, continua y verifica cada paso con tus arquitectos y e2e tests"</p>
+            </div>
+            <div class="mt-4 p-4 rounded-xl bg-base border border-white/5 text-sm">
+              <p class="text-gold font-medium mb-2">What happens next:</p>
+              <ul class="space-y-1 text-gray-400">
+                <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#10003;</span> Claude reads the sprint roadmap</li>
+                <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#10003;</span> For each sprint, spawns Architect agents (design phase)</li>
+                <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#10003;</span> Architects produce technical specs, Dev agents implement</li>
+                <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#10003;</span> QA agent writes Playwright E2E tests</li>
+                <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#10003;</span> System Architect validates integration</li>
+                <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#10003;</span> Moves to next sprint automatically</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 6 -->
+        <div class="fade-in relative md:pl-20 mb-12">
+          <div class="hidden md:flex absolute left-4 w-8 h-8 rounded-full bg-accent items-center justify-center text-sm font-bold">6</div>
+          <div class="step-card rounded-2xl bg-elevated p-6">
+            <div class="flex items-center gap-3 mb-3">
+              <span class="md:hidden inline-flex w-7 h-7 rounded-full bg-accent items-center justify-center text-xs font-bold">6</span>
+              <h3 class="text-xl font-semibold">Occasional Nudges & Course Corrections</h3>
+            </div>
+            <p class="text-gray-400 mb-4">Sometimes the AI gets stuck or loses context (context window fills up). A short nudge gets it back on track.</p>
+            <div class="space-y-3">
+              <div class="prompt-bubble rounded-xl p-3 text-sm">
+                <p class="text-gray-300 italic">"Continue, it seems you and your agents were stuck"</p>
+              </div>
+              <div class="prompt-bubble rounded-xl p-3 text-sm">
+                <p class="text-gray-300 italic">"Rise your architects and validate what other features we need for next iterations"</p>
+              </div>
+              <div class="prompt-bubble rounded-xl p-3 text-sm">
+                <p class="text-gray-300 italic">"Document, analyze, implement everything without waiting for me"</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 7 -->
+        <div class="fade-in relative md:pl-20 mb-12">
+          <div class="hidden md:flex absolute left-4 w-8 h-8 rounded-full bg-accent items-center justify-center text-sm font-bold">7</div>
+          <div class="step-card rounded-2xl bg-elevated p-6">
+            <div class="flex items-center gap-3 mb-3">
+              <span class="md:hidden inline-flex w-7 h-7 rounded-full bg-accent items-center justify-center text-xs font-bold">7</span>
+              <h3 class="text-xl font-semibold">Infrastructure & Testing</h3>
+            </div>
+            <p class="text-gray-400 mb-4">Once features are implemented, ask about test infrastructure. The AI creates Docker test setups, CI/CD pipelines, and deployment configs.</p>
+            <div class="prompt-bubble rounded-xl p-4 text-sm">
+              <p class="text-gray-300 italic">"How can we test everything? Do you have a Docker compose infra?"</p>
+            </div>
+            <div class="mt-3 text-xs text-gray-500">
+              <strong>Result:</strong> Creates docker-compose.test.yml with databases in Docker, unit test scripts, Playwright E2E infrastructure, and separate test profiles.
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 8 -->
+        <div class="fade-in relative md:pl-20 mb-12">
+          <div class="hidden md:flex absolute left-4 w-8 h-8 rounded-full bg-accent items-center justify-center text-sm font-bold">8</div>
+          <div class="step-card rounded-2xl bg-elevated p-6">
+            <div class="flex items-center gap-3 mb-3">
+              <span class="md:hidden inline-flex w-7 h-7 rounded-full bg-accent items-center justify-center text-xs font-bold">8</span>
+              <h3 class="text-xl font-semibold">Deployment Configuration</h3>
+            </div>
+            <p class="text-gray-400 mb-4">Describe your infrastructure constraints and let Claude build the entire deployment pipeline.</p>
+            <div class="prompt-bubble rounded-xl p-4 text-sm">
+              <p class="text-gray-300 italic">"Document the deployment in local and in [hosting platform]. This instance uses subdomains of [your-domain.com] and only uses port 443 via Cloudflare Tunnel. Create the docker-compose file."</p>
+            </div>
+            <div class="mt-3 text-xs text-gray-500">
+              <strong>Result:</strong> Production docker-compose with container registry images, CI/CD pipeline, nginx configs, Dockerfiles for frontend/backend, env templates, and full deployment docs.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- The CLAUDE.md Section -->
+  <section id="claude-md" class="py-20 px-6">
+    <div class="max-w-4xl mx-auto">
+      <h2 class="text-3xl font-bold mb-4">The Secret Weapon: CLAUDE.md</h2>
+      <p class="text-gray-400 mb-8 text-lg">
+        The <code class="text-accent-light bg-accent-subtle px-2 py-0.5 rounded">CLAUDE.md</code> file at your project root is loaded into EVERY conversation.
+        It's your team's constitution — the rules that all agents must follow, always.
+      </p>
+
+      <div class="code-block rounded-2xl overflow-hidden">
+        <div class="flex items-center gap-2 px-4 py-3 bg-surface border-b border-white/5">
+          <div class="flex gap-1.5">
+            <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+            <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+            <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+          </div>
+          <span class="text-xs text-gray-500 ml-2">CLAUDE.md</span>
+        </div>
+        <pre class="p-6 text-sm text-gray-300 overflow-x-auto leading-relaxed"><code><span class="text-gray-500"># What goes in CLAUDE.md:</span>
+
+<span class="text-accent-light font-semibold">## Project Description</span>
+One paragraph explaining the business.
+
+<span class="text-accent-light font-semibold">## Tech Stack</span>
+Exact versions, no ambiguity.
+
+<span class="text-accent-light font-semibold">## Development Rules</span>
+- REST API with JSON responses
+- Strict TypeScript in frontend
+- Conventional Commits in English
+- Mandatory tests for payment/order flows
+
+<span class="text-accent-light font-semibold">## Language Policy</span>
+- UI: Spanish (hardcoded, no i18n)
+- Code: English
+- Docs: English
+
+<span class="text-accent-light font-semibold">## UX Philosophy</span>
+Touch-first, mobile-first, PWA, dark theme...
+<span class="text-gray-500">(Include exact color codes, spacing, etc.)</span>
+
+<span class="text-gold font-semibold">## CRITICAL: Agent Orchestration</span>
+<span class="text-gold">Every feature MUST go through the pipeline:</span>
+1. DESIGN → Architects (parallel)
+2. IMPLEMENTATION → Devs (sequential)
+3. TESTING → QA Automator
+4. REVIEW → System Architect
+
+<span class="text-red-400">### Unbreakable Rules:</span>
+- NEVER skip the pipeline
+- NEVER implement without architect approval
+- NEVER merge without E2E tests
+- Architects DO NOT implement
+- Backend ALWAYS before Frontend</code></pre>
+      </div>
+
+      <div class="mt-8 p-6 rounded-2xl bg-elevated border border-white/5">
+        <h4 class="font-semibold mb-3 flex items-center gap-2">
+          <svg class="w-5 h-5 text-gold" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          Why this matters
+        </h4>
+        <p class="text-sm text-gray-400">
+          When Claude Code spawns sub-agents, each one reads CLAUDE.md. This means your Backend Dev agent knows the color system.
+          Your QA agent knows the business rules. Your Frontend agent knows it must be touch-first.
+          <strong class="text-white">It's a shared brain for the entire AI team.</strong>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Prompts Gallery -->
+  <section id="prompts" class="py-20 px-6 bg-surface/50">
+    <div class="max-w-4xl mx-auto">
+      <h2 class="text-3xl font-bold mb-4">Prompt Patterns That Work</h2>
+      <p class="text-gray-400 mb-12">These are the patterns I use repeatedly. Note: they're short. The magic is in the documentation, not the prompts.</p>
+
+      <div class="space-y-4">
+        <!-- Pattern 1 -->
+        <div class="accordion-item">
+          <button onclick="toggleAccordion(this)" class="w-full text-left p-5 rounded-2xl bg-elevated hover:bg-hover transition-colors flex items-center justify-between">
+            <div>
+              <span class="text-xs text-accent-light font-mono mr-3">PATTERN 1</span>
+              <span class="font-medium">The Business Story</span>
+            </div>
+            <svg class="w-5 h-5 text-gray-500 transition-transform accordion-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </button>
+          <div class="accordion-content">
+            <div class="px-5 pb-5 pt-3">
+              <p class="text-sm text-gray-400 mb-3">Tell the problem like you're explaining it to a friend at a coffee shop. Include pain points, target users, and the business opportunity. No technical jargon.</p>
+              <div class="code-block rounded-xl p-4 text-sm text-gray-300">
+                <p>"We have [problem] affecting [target users]. They need [solution] but there's no good way to access it. We want to build a platform that [value proposition]..."</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pattern 2 -->
+        <div class="accordion-item">
+          <button onclick="toggleAccordion(this)" class="w-full text-left p-5 rounded-2xl bg-elevated hover:bg-hover transition-colors flex items-center justify-between">
+            <div>
+              <span class="text-xs text-accent-light font-mono mr-3">PATTERN 2</span>
+              <span class="font-medium">The Constraint Injection</span>
+            </div>
+            <svg class="w-5 h-5 text-gray-500 transition-transform accordion-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </button>
+          <div class="accordion-content">
+            <div class="px-5 pb-5 pt-3">
+              <p class="text-sm text-gray-400 mb-3">Short, imperative constraints that become permanent rules. Each one shapes all future work.</p>
+              <div class="code-block rounded-xl p-4 text-sm text-gray-300 space-y-2">
+                <p>"Must be a PWA installable on mobile"</p>
+                <p>"Dark theme, modern UI like Uber/Rappi"</p>
+                <p>"All UI in Spanish, code in English"</p>
+                <p>"Currency: [local currency], Timezone: [local TZ]"</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pattern 3 -->
+        <div class="accordion-item">
+          <button onclick="toggleAccordion(this)" class="w-full text-left p-5 rounded-2xl bg-elevated hover:bg-hover transition-colors flex items-center justify-between">
+            <div>
+              <span class="text-xs text-accent-light font-mono mr-3">PATTERN 3</span>
+              <span class="font-medium">The Architect Invocation</span>
+            </div>
+            <svg class="w-5 h-5 text-gray-500 transition-transform accordion-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </button>
+          <div class="accordion-content">
+            <div class="px-5 pb-5 pt-3">
+              <p class="text-sm text-gray-400 mb-3">Ask for review, not implementation. The architects catch issues before code is written.</p>
+              <div class="code-block rounded-xl p-4 text-sm text-gray-300 space-y-2">
+                <p>"Rise your architects and validate the documentation"</p>
+                <p>"Have your architects analyze if the colors work for this market"</p>
+                <p>"Rise architects to see what features are missing for next iterations"</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pattern 4 -->
+        <div class="accordion-item">
+          <button onclick="toggleAccordion(this)" class="w-full text-left p-5 rounded-2xl bg-elevated hover:bg-hover transition-colors flex items-center justify-between">
+            <div>
+              <span class="text-xs text-accent-light font-mono mr-3">PATTERN 4</span>
+              <span class="font-medium">The Unleash Command</span>
+            </div>
+            <svg class="w-5 h-5 text-gray-500 transition-transform accordion-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </button>
+          <div class="accordion-content">
+            <div class="px-5 pb-5 pt-3">
+              <p class="text-sm text-gray-400 mb-3">Once everything is documented and validated, give full autonomy. This is where hours of work happen with zero input from you.</p>
+              <div class="code-block rounded-xl p-4 text-sm text-gray-300 space-y-2">
+                <p>"Start working with your agent team non-stop, don't wait for my approval"</p>
+                <p>"Document, analyze, implement everything without waiting for me"</p>
+                <p>"Continue without stopping, verify with architects and E2E tests"</p>
+              </div>
+              <p class="text-xs text-gray-500 mt-3"><strong>Important:</strong> This only works AFTER solid documentation exists. Without CLAUDE.md and orchestration rules, autonomous execution produces garbage.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pattern 5 -->
+        <div class="accordion-item">
+          <button onclick="toggleAccordion(this)" class="w-full text-left p-5 rounded-2xl bg-elevated hover:bg-hover transition-colors flex items-center justify-between">
+            <div>
+              <span class="text-xs text-accent-light font-mono mr-3">PATTERN 5</span>
+              <span class="font-medium">The Infrastructure Ask</span>
+            </div>
+            <svg class="w-5 h-5 text-gray-500 transition-transform accordion-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </button>
+          <div class="accordion-content">
+            <div class="px-5 pb-5 pt-3">
+              <p class="text-sm text-gray-400 mb-3">Describe your infrastructure constraints and let Claude figure out the how.</p>
+              <div class="code-block rounded-xl p-4 text-sm text-gray-300 space-y-2">
+                <p>"Deploy on [platform], subdomains of [your-domain.com], only port 443 via Cloudflare Tunnel"</p>
+                <p>"I want GitHub Actions to build images and the hosting platform to consume them via webhook"</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Results -->
+  <section id="results" class="py-20 px-6">
+    <div class="max-w-4xl mx-auto">
+      <h2 class="text-3xl font-bold mb-4">What This Produced</h2>
+      <p class="text-gray-400 mb-12">From ~20 short prompts over a few sessions, here's what was generated:</p>
+
+      <div class="grid sm:grid-cols-2 gap-4 mb-12">
+        <div class="p-5 rounded-2xl bg-surface border border-white/5">
+          <div class="text-3xl font-bold text-accent-light mb-1">10</div>
+          <div class="text-sm text-gray-400">Documentation files</div>
+          <div class="text-xs text-gray-600 mt-1">Business analysis, requirements, architecture, user stories, API reference, deployment guide</div>
+        </div>
+        <div class="p-5 rounded-2xl bg-surface border border-white/5">
+          <div class="text-3xl font-bold text-gold mb-1">11</div>
+          <div class="text-sm text-gray-400">Sprints implemented</div>
+          <div class="text-xs text-gray-600 mt-1">Auth, CRUD, business logic, payments, real-time, notifications, admin, security, testing</div>
+        </div>
+        <div class="p-5 rounded-2xl bg-surface border border-white/5">
+          <div class="text-3xl font-bold text-green-400 mb-1">3</div>
+          <div class="text-sm text-gray-400">Frontend PWAs</div>
+          <div class="text-xs text-gray-600 mt-1">User app, Provider app, Admin panel — all dark theme, touch-first, installable</div>
+        </div>
+        <div class="p-5 rounded-2xl bg-surface border border-white/5">
+          <div class="text-3xl font-bold text-purple-400 mb-1">Full</div>
+          <div class="text-sm text-gray-400">CI/CD pipeline</div>
+          <div class="text-xs text-gray-600 mt-1">GitHub Actions → Container Registry → Webhook deploy → SSL Tunnel</div>
+        </div>
+      </div>
+
+      <!-- Architecture diagram -->
+      <div class="code-block rounded-2xl p-6">
+        <h4 class="text-sm font-medium text-gray-400 mb-4">Generated Architecture</h4>
+        <pre class="text-xs text-gray-400 leading-relaxed overflow-x-auto"><code>
+  User (Mobile PWA)          Provider (Mobile PWA)         Admin (Desktop PWA)
+        |                           |                            |
+        v                           v                            v
+  app.your-domain.com       provider.your-domain.com      admin.your-domain.com
+        |                           |                            |
+        +---------------------------+----------------------------+
+                                    |
+                          Cloudflare Tunnel (443)
+                                    |
+                           Hosting Platform / Traefik
+                                    |
+                    +---------------+----------------+
+                    |               |                |
+              nginx-api         soketi           minio
+              (Backend)       (WebSocket)      (Storage)
+                    |
+              PHP-FPM + Redis + MySQL
+                    |
+            Queue Worker + Scheduler
+        </code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tips Section -->
+  <section class="py-20 px-6 bg-surface/50">
+    <div class="max-w-4xl mx-auto">
+      <h2 class="text-3xl font-bold mb-8">Pro Tips</h2>
+
+      <div class="space-y-4">
+        <div class="flex items-start gap-4 p-5 rounded-2xl bg-elevated">
+          <div class="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="text-green-400 text-lg">1</span>
+          </div>
+          <div>
+            <h4 class="font-medium mb-1">Invest 80% in documentation, 20% in prompts</h4>
+            <p class="text-sm text-gray-400">The better your CLAUDE.md and docs are, the less you need to type. A well-documented project runs on "continue" and "don't stop".</p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-4 p-5 rounded-2xl bg-elevated">
+          <div class="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="text-green-400 text-lg">2</span>
+          </div>
+          <div>
+            <h4 class="font-medium mb-1">Use the agent pipeline as quality control</h4>
+            <p class="text-sm text-gray-400">Having an "architect" review before a "dev" implements catches bad designs early. It's like mandatory code review but at the design level.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-4 p-5 rounded-2xl bg-elevated">
+          <div class="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="text-green-400 text-lg">3</span>
+          </div>
+          <div>
+            <h4 class="font-medium mb-1">Context window is your enemy</h4>
+            <p class="text-sm text-gray-400">Sessions will hit context limits and restart. That's fine — Claude reads CLAUDE.md on every new session. Your rules persist even when the conversation doesn't.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-4 p-5 rounded-2xl bg-elevated">
+          <div class="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="text-green-400 text-lg">4</span>
+          </div>
+          <div>
+            <h4 class="font-medium mb-1">Be the product owner, not the developer</h4>
+            <p class="text-sm text-gray-400">Think in terms of business requirements, constraints, and acceptance criteria. Let the AI decide HOW to implement. You decide WHAT and WHY.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-4 p-5 rounded-2xl bg-elevated">
+          <div class="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="text-green-400 text-lg">5</span>
+          </div>
+          <div>
+            <h4 class="font-medium mb-1">Nudge, don't micromanage</h4>
+            <p class="text-sm text-gray-400">If the AI gets stuck, a single sentence like "continue" or "you seem stuck" is enough. Don't re-explain the entire context — it already has it in the docs.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-4 p-5 rounded-2xl bg-elevated">
+          <div class="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="text-green-400 text-lg">6</span>
+          </div>
+          <div>
+            <h4 class="font-medium mb-1">Memory system for cross-session continuity</h4>
+            <p class="text-sm text-gray-400">Use "save your memory" to persist important decisions. Claude's memory system remembers your preferences, project context, and feedback across conversations.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Anti-patterns -->
+  <section class="py-20 px-6">
+    <div class="max-w-4xl mx-auto">
+      <h2 class="text-3xl font-bold mb-8">Common Mistakes</h2>
+
+      <div class="space-y-4">
+        <div class="flex items-start gap-4 p-5 rounded-2xl bg-elevated border border-red-500/10">
+          <div class="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="text-red-400 text-lg">&times;</span>
+          </div>
+          <div>
+            <h4 class="font-medium mb-1">Starting with code, not documentation</h4>
+            <p class="text-sm text-gray-400">If you jump straight to "build me a login page", you get code without context. The AI will make random choices about architecture, testing, naming, etc. Documentation first = consistent output.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-4 p-5 rounded-2xl bg-elevated border border-red-500/10">
+          <div class="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="text-red-400 text-lg">&times;</span>
+          </div>
+          <div>
+            <h4 class="font-medium mb-1">Giving autonomy without rules</h4>
+            <p class="text-sm text-gray-400">Saying "build everything" without a CLAUDE.md is like hiring a team with no brief. They'll produce something, but it won't be what you wanted. Rules + autonomy = great results.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-4 p-5 rounded-2xl bg-elevated border border-red-500/10">
+          <div class="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="text-red-400 text-lg">&times;</span>
+          </div>
+          <div>
+            <h4 class="font-medium mb-1">Micromanaging each step</h4>
+            <p class="text-sm text-gray-400">If you approve every file, you lose the speed advantage. Trust the pipeline: architects validate design, devs implement, QA verifies. You only step in for business decisions.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-4 p-5 rounded-2xl bg-elevated border border-red-500/10">
+          <div class="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="text-red-400 text-lg">&times;</span>
+          </div>
+          <div>
+            <h4 class="font-medium mb-1">Not enforcing the agent pipeline</h4>
+            <p class="text-sm text-gray-400">Without the "NEVER skip the pipeline" rule in CLAUDE.md, the AI takes shortcuts. It will skip architect review, skip tests, and produce fragile code. The pipeline IS the quality.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-4 p-5 rounded-2xl bg-elevated border border-red-500/10">
+          <div class="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="text-red-400 text-lg">&times;</span>
+          </div>
+          <div>
+            <h4 class="font-medium mb-1">Ignoring context window limits</h4>
+            <p class="text-sm text-gray-400">Long sessions will hit the context limit and restart. If your rules only live in chat history, they're lost. Put everything in CLAUDE.md — it survives every restart.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quick Start -->
+  <section id="quickstart" class="py-20 px-6 bg-surface/50">
+    <div class="max-w-4xl mx-auto">
+      <h2 class="text-3xl font-bold mb-8">Quick Start Template</h2>
+      <p class="text-gray-400 mb-6">Copy this sequence for your next project:</p>
+
+      <div class="code-block rounded-2xl overflow-hidden">
+        <div class="flex items-center gap-2 px-4 py-3 bg-surface border-b border-white/5">
+          <div class="flex gap-1.5">
+            <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+            <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+            <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+          </div>
+          <span class="text-xs text-gray-500 ml-2">Your prompts (in order)</span>
+        </div>
+        <pre class="p-6 text-sm text-gray-300 overflow-x-auto leading-loose"><code><span class="text-gray-500">// Prompt 1: Business problem (natural language, no tech)</span>
+<span class="text-accent-light">"We have this problem: [describe the pain point, users, opportunity]"</span>
+
+<span class="text-gray-500">// Prompt 2: Set up orchestration (define your AI team)</span>
+<span class="text-accent-light">"Create documentation for AI agent orchestration with architects,
+ dev agents, and QA automators. This pipeline is mandatory for all work."</span>
+
+<span class="text-gray-500">// Prompt 3-N: Inject constraints (one per message)</span>
+<span class="text-accent-light">"Must be mobile-first PWA"</span>
+<span class="text-accent-light">"Dark theme, modern UI"</span>
+<span class="text-accent-light">"All UI in [language], code in English"</span>
+<span class="text-accent-light">"Use [tech stack]"</span>
+
+<span class="text-gray-500">// Prompt N+1: Architect review</span>
+<span class="text-accent-light">"Rise your architects to review and improve the documentation"</span>
+
+<span class="text-gray-500">// Prompt N+2: THE MAGIC (autonomous execution)</span>
+<span class="text-gold">"Start working with your agent team, don't wait for my approval,
+ verify each step with architects and E2E tests"</span>
+
+<span class="text-gray-500">// Prompt N+3 (as needed): Nudges</span>
+<span class="text-accent-light">"Continue"</span>
+<span class="text-accent-light">"Document and implement without waiting"</span>
+
+<span class="text-gray-500">// Prompt N+4: Infrastructure</span>
+<span class="text-accent-light">"Deploy on [platform], [describe constraints]"</span></code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="py-12 px-6 border-t border-white/5">
+    <div class="max-w-4xl mx-auto text-center">
+      <p class="text-gray-500 text-sm">
+        Built using the exact methodology described above. Powered by Claude Code CLI.
+      </p>
+      <p class="text-gray-600 text-xs mt-2">
+        Internal team guide &mdash; 2026
+      </p>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script>
+    // Scroll progress indicator
+    window.addEventListener('scroll', () => {
+      const scrollTop = document.documentElement.scrollTop;
+      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = (scrollTop / scrollHeight) * 100;
+      document.getElementById('scrollIndicator').style.width = progress + '%';
+    });
+
+    // Fade-in on scroll
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+    // Accordion
+    function toggleAccordion(button) {
+      const content = button.nextElementSibling;
+      const arrow = button.querySelector('.accordion-arrow');
+      const isOpen = content.classList.contains('open');
+
+      // Close all
+      document.querySelectorAll('.accordion-content').forEach(c => c.classList.remove('open'));
+      document.querySelectorAll('.accordion-arrow').forEach(a => a.style.transform = '');
+
+      // Open clicked (if it was closed)
+      if (!isOpen) {
+        content.classList.add('open');
+        arrow.style.transform = 'rotate(180deg)';
+      }
+    }
+
+    // Active nav highlighting
+    const sections = document.querySelectorAll('section[id]');
+    const navLinks = document.querySelectorAll('.nav-link');
+
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(section => {
+        const sectionTop = section.offsetTop - 100;
+        if (window.scrollY >= sectionTop) {
+          current = section.getAttribute('id');
+        }
+      });
+      navLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === '#' + current) {
+          link.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
