@@ -141,6 +141,7 @@
         <a href="#langgraph" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">LangGraph</a>
         <a href="#langsmith" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">LangSmith</a>
         <a href="#real-project" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">Real Project</a>
+        <a href="#combining" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">Hybrid</a>
         <a href="#quick-ref" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">Quick Ref</a>
       </div>
     </div>
@@ -155,9 +156,10 @@
       <h1 class="text-4xl sm:text-6xl font-bold mb-6 leading-tight">
         <span class="gradient-text">Advanced AI Frameworks</span>
       </h1>
-      <p class="text-lg text-gray-400 max-w-2xl mx-auto mb-8">
+      <p class="text-lg text-gray-400 max-w-2xl mx-auto mb-4">
         Deep step-by-step guide to building production AI agent systems
       </p>
+      <p class="text-sm text-gray-500 mb-8">Estimated reading time: ~45 min | Hands-on exercises included</p>
       <div class="flex flex-wrap justify-center gap-4 text-sm">
         <div class="px-4 py-2 rounded-xl bg-surface border border-white/5">
           <span class="text-green-400 font-mono">LangChain</span>
@@ -174,6 +176,39 @@
       </div>
     </div>
   </header>
+
+  <!-- What You'll Learn -->
+  <section class="pb-16 px-6">
+    <div class="max-w-4xl mx-auto">
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="p-4 rounded-xl bg-surface border border-white/5 text-center">
+          <div class="text-2xl mb-2 text-green-400 font-bold">6</div>
+          <p class="text-xs text-gray-400">LangChain steps with RAG, tools, memory</p>
+        </div>
+        <div class="p-4 rounded-xl bg-surface border border-white/5 text-center">
+          <div class="text-2xl mb-2 text-accent-light font-bold">8</div>
+          <p class="text-xs text-gray-400">LangGraph patterns from basic to multi-agent</p>
+        </div>
+        <div class="p-4 rounded-xl bg-surface border border-white/5 text-center">
+          <div class="text-2xl mb-2 text-gold font-bold">5</div>
+          <p class="text-xs text-gray-400">LangSmith workflows: trace, eval, monitor</p>
+        </div>
+        <div class="p-4 rounded-xl bg-surface border border-white/5 text-center">
+          <div class="text-2xl mb-2 text-white font-bold">2</div>
+          <p class="text-xs text-gray-400">Complete real-world projects to copy & run</p>
+        </div>
+      </div>
+      <div class="mt-6 p-4 rounded-xl bg-elevated border border-white/5">
+        <h3 class="text-sm font-semibold text-white mb-2">Prerequisites</h3>
+        <div class="flex flex-wrap gap-2 text-xs">
+          <span class="px-3 py-1 rounded-full bg-surface text-gray-300">Python 3.10+</span>
+          <span class="px-3 py-1 rounded-full bg-surface text-gray-300">Basic LLM concepts</span>
+          <span class="px-3 py-1 rounded-full bg-surface text-gray-300">OpenAI API key</span>
+          <span class="px-3 py-1 rounded-full bg-surface text-gray-300">pip / virtual environments</span>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <!-- Section: Understanding the Ecosystem -->
   <section id="ecosystem" class="py-20 px-6 border-b border-white/5">
@@ -1381,7 +1416,7 @@ Context:
     </div>
   </section>
 
-  <!-- LANGGRAPH_SECTION -->
+
 <section id="langgraph" class="py-20 px-6">
   <div class="max-w-6xl mx-auto">
 
@@ -4455,6 +4490,25 @@ print(f"Score: {results.aggregate_metrics}")</code></pre>
         arrow.style.transform = 'rotate(180deg)';
       }
     }
+
+    // Copy-to-clipboard on code blocks
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = document.createElement('button');
+      btn.className = 'absolute top-2 right-2 px-2 py-1 rounded text-xs bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-colors';
+      btn.textContent = 'Copy';
+      btn.addEventListener('click', () => {
+        const code = block.querySelector('code') || block.querySelector('pre');
+        if (code) {
+          navigator.clipboard.writeText(code.textContent).then(() => {
+            btn.textContent = 'Copied!';
+            btn.classList.add('text-green-400');
+            setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('text-green-400'); }, 2000);
+          });
+        }
+      });
+      block.style.position = 'relative';
+      block.appendChild(btn);
+    });
 
     // Active nav highlighting
     const sections = document.querySelectorAll('section[id]');
