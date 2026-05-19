@@ -129,7 +129,8 @@
         <a href="#claude-md" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">CLAUDE.md</a>
         <a href="#prompts" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">Prompts</a>
         <a href="#results" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">Results</a>
-        <a href="#quickstart" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">Quick Start</a>
+        <a href="#other-models" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">Other AIs</a>
+        <a href="#advanced" class="nav-link px-3 py-1.5 rounded-full border border-transparent hover:border-accent/30 transition-colors">Advanced</a>
       </div>
     </div>
   </nav>
@@ -845,6 +846,321 @@ Touch-first, mobile-first, PWA, dark theme...
 
 <span class="text-gray-500">// Prompt N+4: Infrastructure</span>
 <span class="text-accent-light">"Deploy on [platform], [describe constraints]"</span></code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Translating to Other AI Models -->
+  <section id="other-models" class="py-20 px-6">
+    <div class="max-w-4xl mx-auto">
+      <h2 class="text-3xl font-bold mb-4">Translating to Other AI Models</h2>
+      <p class="text-gray-400 mb-12">This methodology isn't locked to Claude. Here's how to apply the same orchestration process across different AI platforms.</p>
+
+      <div class="grid md:grid-cols-2 gap-6 mb-12">
+        <!-- ChatGPT / OpenAI -->
+        <div class="step-card rounded-2xl bg-surface p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
+              <span class="text-green-400 font-bold text-sm">GP</span>
+            </div>
+            <div>
+              <h3 class="font-semibold">ChatGPT / OpenAI API</h3>
+              <p class="text-xs text-gray-500">GPT-4o, o1, o3</p>
+            </div>
+          </div>
+          <div class="space-y-2 text-sm text-gray-400">
+            <p><span class="text-white font-medium">System prompt</span> = your CLAUDE.md (paste full content as system message)</p>
+            <p><span class="text-white font-medium">Custom GPTs</span> = define each agent as a separate Custom GPT with its own instructions</p>
+            <p><span class="text-white font-medium">Assistants API</span> = create assistants with tools for file I/O, code execution</p>
+            <p><span class="text-white font-medium">Limitation:</span> No native sub-agent spawning. You orchestrate manually or use LangGraph.</p>
+          </div>
+        </div>
+
+        <!-- Cursor -->
+        <div class="step-card rounded-2xl bg-surface p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+              <span class="text-purple-400 font-bold text-sm">Cu</span>
+            </div>
+            <div>
+              <h3 class="font-semibold">Cursor IDE</h3>
+              <p class="text-xs text-gray-500">Agent mode</p>
+            </div>
+          </div>
+          <div class="space-y-2 text-sm text-gray-400">
+            <p><span class="text-white font-medium">.cursorrules</span> = your CLAUDE.md equivalent (same content, different filename)</p>
+            <p><span class="text-white font-medium">Composer</span> = multi-file implementation (like a Dev agent)</p>
+            <p><span class="text-white font-medium">Agent mode</span> = can run terminal commands, read files</p>
+            <p><span class="text-white font-medium">Limitation:</span> Single-agent only. No parallel architect/dev/QA pipeline natively.</p>
+          </div>
+        </div>
+
+        <!-- Windsurf / Codium -->
+        <div class="step-card rounded-2xl bg-surface p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+              <span class="text-blue-400 font-bold text-sm">Wi</span>
+            </div>
+            <div>
+              <h3 class="font-semibold">Windsurf (Codeium)</h3>
+              <p class="text-xs text-gray-500">Cascade agent</p>
+            </div>
+          </div>
+          <div class="space-y-2 text-sm text-gray-400">
+            <p><span class="text-white font-medium">Rules file</span> = place rules in project-level config</p>
+            <p><span class="text-white font-medium">Cascade</span> = multi-step agent with file access and terminal</p>
+            <p><span class="text-white font-medium">Flows</span> = predefined multi-step workflows</p>
+            <p><span class="text-white font-medium">Limitation:</span> Less control over agent separation. Better for single-dev workflows.</p>
+          </div>
+        </div>
+
+        <!-- Gemini -->
+        <div class="step-card rounded-2xl bg-surface p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-yellow-500/10 flex items-center justify-center">
+              <span class="text-yellow-400 font-bold text-sm">Ge</span>
+            </div>
+            <div>
+              <h3 class="font-semibold">Google Gemini</h3>
+              <p class="text-xs text-gray-500">Gemini 2.5 Pro, Flash</p>
+            </div>
+          </div>
+          <div class="space-y-2 text-sm text-gray-400">
+            <p><span class="text-white font-medium">System instructions</span> = your CLAUDE.md as system context</p>
+            <p><span class="text-white font-medium">Gems</span> = custom personas for each agent role</p>
+            <p><span class="text-white font-medium">1M+ context</span> = can hold entire codebase in one shot</p>
+            <p><span class="text-white font-medium">Limitation:</span> No native file system access or terminal. Needs wrapper tooling.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Equivalence table -->
+      <div class="code-block rounded-2xl overflow-hidden">
+        <div class="flex items-center gap-2 px-4 py-3 bg-surface border-b border-white/5">
+          <span class="text-xs text-gray-500">Concept mapping across platforms</span>
+        </div>
+        <div class="p-6 overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-gray-500 border-b border-white/5">
+                <th class="pb-3 pr-4 font-medium">This Methodology</th>
+                <th class="pb-3 pr-4 font-medium">Claude Code</th>
+                <th class="pb-3 pr-4 font-medium">ChatGPT</th>
+                <th class="pb-3 pr-4 font-medium">Cursor</th>
+                <th class="pb-3 font-medium">Custom (LangGraph)</th>
+              </tr>
+            </thead>
+            <tbody class="text-gray-300">
+              <tr class="border-b border-white/5">
+                <td class="py-3 pr-4 text-white font-medium">Project Rules</td>
+                <td class="py-3 pr-4">CLAUDE.md</td>
+                <td class="py-3 pr-4">System prompt</td>
+                <td class="py-3 pr-4">.cursorrules</td>
+                <td class="py-3">State + config</td>
+              </tr>
+              <tr class="border-b border-white/5">
+                <td class="py-3 pr-4 text-white font-medium">Agent Spawning</td>
+                <td class="py-3 pr-4">Agent tool (native)</td>
+                <td class="py-3 pr-4">Assistants API</td>
+                <td class="py-3 pr-4">Not available</td>
+                <td class="py-3">Nodes in graph</td>
+              </tr>
+              <tr class="border-b border-white/5">
+                <td class="py-3 pr-4 text-white font-medium">Parallel Execution</td>
+                <td class="py-3 pr-4">Multiple agents</td>
+                <td class="py-3 pr-4">Thread per agent</td>
+                <td class="py-3 pr-4">Sequential only</td>
+                <td class="py-3">Fan-out nodes</td>
+              </tr>
+              <tr class="border-b border-white/5">
+                <td class="py-3 pr-4 text-white font-medium">File Access</td>
+                <td class="py-3 pr-4">Full (native)</td>
+                <td class="py-3 pr-4">Code Interpreter</td>
+                <td class="py-3 pr-4">Full (IDE)</td>
+                <td class="py-3">Custom tools</td>
+              </tr>
+              <tr>
+                <td class="py-3 pr-4 text-white font-medium">Memory</td>
+                <td class="py-3 pr-4">Memory files</td>
+                <td class="py-3 pr-4">Conversation memory</td>
+                <td class="py-3 pr-4">Notepad</td>
+                <td class="py-3">Checkpointer</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="mt-8 p-6 rounded-2xl bg-elevated border border-white/5">
+        <h4 class="font-semibold mb-3">Key Takeaway</h4>
+        <p class="text-sm text-gray-400">The <strong class="text-white">methodology</strong> (documentation first → define agents → validate → execute autonomously) works everywhere. What changes is the <strong class="text-white">mechanism</strong>: Claude Code has native multi-agent support; other tools require you to build the orchestration layer yourself or use frameworks like LangGraph.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Advanced: LangGraph / LangChain / LangSmith -->
+  <section id="advanced" class="py-20 px-6 bg-surface/50">
+    <div class="max-w-4xl mx-auto">
+      <div class="flex items-center gap-3 mb-4">
+        <h2 class="text-3xl font-bold">Advanced: LangGraph, LangChain & LangSmith</h2>
+        <span class="px-2 py-0.5 rounded-full bg-accent-subtle text-accent-light text-xs font-medium">ADVANCED</span>
+      </div>
+      <p class="text-gray-400 mb-12">When to graduate from a single AI CLI to a programmatic orchestration framework — and how to translate this methodology into code.</p>
+
+      <!-- When to use -->
+      <h3 class="text-xl font-semibold mb-6">When Do You Need This?</h3>
+      <div class="grid md:grid-cols-2 gap-4 mb-12">
+        <div class="p-5 rounded-2xl bg-elevated border border-green-500/10">
+          <h4 class="text-green-400 font-medium mb-3 text-sm uppercase tracking-wide">Claude Code CLI is enough when:</h4>
+          <ul class="space-y-2 text-sm text-gray-400">
+            <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#10003;</span> You're building a single product/project</li>
+            <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#10003;</span> One developer (you) orchestrating the AI</li>
+            <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#10003;</span> The pipeline runs in real-time during your session</li>
+            <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#10003;</span> Results are code commits, not API responses</li>
+            <li class="flex items-start gap-2"><span class="text-green-400 mt-0.5">&#10003;</span> Your agents don't need external data sources</li>
+          </ul>
+        </div>
+        <div class="p-5 rounded-2xl bg-elevated border border-accent/10">
+          <h4 class="text-accent-light font-medium mb-3 text-sm uppercase tracking-wide">Use LangGraph/LangChain when:</h4>
+          <ul class="space-y-2 text-sm text-gray-400">
+            <li class="flex items-start gap-2"><span class="text-accent-light mt-0.5">&#9679;</span> You need agents running 24/7 as a service</li>
+            <li class="flex items-start gap-2"><span class="text-accent-light mt-0.5">&#9679;</span> Multiple users trigger the same pipeline</li>
+            <li class="flex items-start gap-2"><span class="text-accent-light mt-0.5">&#9679;</span> Agents need to call external APIs, databases, or tools</li>
+            <li class="flex items-start gap-2"><span class="text-accent-light mt-0.5">&#9679;</span> You need observability, tracing, and cost tracking</li>
+            <li class="flex items-start gap-2"><span class="text-accent-light mt-0.5">&#9679;</span> You're building the product AS an AI agent system</li>
+            <li class="flex items-start gap-2"><span class="text-accent-light mt-0.5">&#9679;</span> You need human-in-the-loop approval gates in production</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- The stack explained -->
+      <h3 class="text-xl font-semibold mb-6">The LangChain Ecosystem</h3>
+      <div class="space-y-4 mb-12">
+        <div class="flex items-start gap-4 p-5 rounded-2xl bg-elevated">
+          <div class="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center flex-shrink-0">
+            <span class="text-green-400 font-bold text-xs">LC</span>
+          </div>
+          <div>
+            <h4 class="font-medium mb-1">LangChain <span class="text-xs text-gray-500 font-normal">— The building blocks</span></h4>
+            <p class="text-sm text-gray-400">Library of components: LLM wrappers, prompt templates, document loaders, vector stores, tools. Use it to build individual agent capabilities (call APIs, search docs, parse files).</p>
+            <p class="text-xs text-gray-500 mt-2"><strong>Maps to:</strong> Individual agent tools and capabilities (like how Claude Code can read files, run bash, search).</p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-4 p-5 rounded-2xl bg-elevated">
+          <div class="w-10 h-10 rounded-xl bg-accent-subtle flex items-center justify-center flex-shrink-0">
+            <span class="text-accent-light font-bold text-xs">LG</span>
+          </div>
+          <div>
+            <h4 class="font-medium mb-1">LangGraph <span class="text-xs text-gray-500 font-normal">— The orchestration engine</span></h4>
+            <p class="text-sm text-gray-400 mb-3">A framework for building stateful, multi-agent workflows as directed graphs. Each node is an agent or tool, edges define the flow, and state persists across steps.</p>
+            <p class="text-sm text-gray-400"><strong class="text-white">This is the programmatic equivalent of our entire orchestration methodology:</strong></p>
+            <div class="mt-3 code-block rounded-xl p-4 text-xs overflow-x-auto">
+              <pre class="text-gray-300"><code>graph = StateGraph(OrchestratorState)
+
+# Define agent nodes (same roles as our pipeline)
+graph.add_node("architect_backend", architect_backend_agent)
+graph.add_node("architect_frontend", architect_frontend_agent)
+graph.add_node("dev_backend", dev_backend_agent)
+graph.add_node("dev_frontend", dev_frontend_agent)
+graph.add_node("qa_automator", qa_agent)
+graph.add_node("system_review", system_architect_agent)
+
+# Define the pipeline flow
+graph.add_edge(START, "architect_backend")
+graph.add_edge(START, "architect_frontend")  # parallel!
+graph.add_edge("architect_backend", "dev_backend")
+graph.add_edge("architect_frontend", "dev_frontend")
+graph.add_edge("dev_backend", "qa_automator")
+graph.add_edge("dev_frontend", "qa_automator")
+graph.add_edge("qa_automator", "system_review")
+graph.add_conditional_edges("system_review", approval_gate)
+
+app = graph.compile(checkpointer=MemorySaver())</code></pre>
+            </div>
+            <p class="text-xs text-gray-500 mt-3"><strong>Maps to:</strong> The Orchestrator + entire agent pipeline (design → implement → test → review).</p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-4 p-5 rounded-2xl bg-elevated">
+          <div class="w-10 h-10 rounded-xl bg-gold-subtle flex items-center justify-center flex-shrink-0">
+            <span class="text-gold font-bold text-xs">LS</span>
+          </div>
+          <div>
+            <h4 class="font-medium mb-1">LangSmith <span class="text-xs text-gray-500 font-normal">— Observability & debugging</span></h4>
+            <p class="text-sm text-gray-400">Tracing platform that records every LLM call, tool invocation, and agent decision. Lets you debug why an agent made a bad choice, track costs, and evaluate quality over time.</p>
+            <p class="text-xs text-gray-500 mt-2"><strong>Maps to:</strong> When you look at Claude Code's output and think "why did it do that?" — LangSmith gives you the full trace with token counts, latencies, and decision trees.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Architecture comparison -->
+      <h3 class="text-xl font-semibold mb-6">Architecture Comparison</h3>
+      <div class="grid md:grid-cols-2 gap-6 mb-12">
+        <div class="code-block rounded-2xl p-5">
+          <h4 class="text-sm font-medium text-accent-light mb-3">Our CLI Approach (this guide)</h4>
+          <pre class="text-xs text-gray-400 leading-relaxed"><code>You (human)
+  │
+  └─→ Claude Code CLI
+        │
+        ├─→ Architect Agent (subagent)
+        ├─→ Dev Agent (subagent)
+        ├─→ QA Agent (subagent)
+        │
+        └─→ Files on disk (your repo)
+
+<span class="text-gray-600">Trigger: your prompts
+State: CLAUDE.md + files
+Output: committed code</span></code></pre>
+        </div>
+        <div class="code-block rounded-2xl p-5">
+          <h4 class="text-sm font-medium text-gold mb-3">LangGraph Approach (programmatic)</h4>
+          <pre class="text-xs text-gray-400 leading-relaxed"><code>API / Trigger / Cron
+  │
+  └─→ LangGraph Application
+        │
+        ├─→ Architect Node (LLM call)
+        ├─→ Dev Node (LLM + tools)
+        ├─→ QA Node (LLM + test runner)
+        │
+        └─→ External Systems (APIs, DBs)
+
+<span class="text-gray-600">Trigger: events / API calls
+State: graph checkpointer
+Output: API responses / actions</span></code></pre>
+        </div>
+      </div>
+
+      <!-- When to combine -->
+      <h3 class="text-xl font-semibold mb-6">Combining Both Approaches</h3>
+      <div class="p-6 rounded-2xl bg-elevated border border-white/5 mb-8">
+        <p class="text-sm text-gray-400 mb-4">The most powerful setup uses <strong class="text-white">both</strong>:</p>
+        <ul class="space-y-3 text-sm text-gray-400">
+          <li class="flex items-start gap-3">
+            <span class="text-accent-light font-bold mt-0.5">1.</span>
+            <span><strong class="text-white">Claude Code CLI</strong> for building the product itself — the methodology in this guide. Fast, interactive, great for greenfield development.</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="text-accent-light font-bold mt-0.5">2.</span>
+            <span><strong class="text-white">LangGraph</strong> for building AI features INSIDE the product — if your product needs agent workflows (customer support bots, data processing pipelines, content generation).</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="text-accent-light font-bold mt-0.5">3.</span>
+            <span><strong class="text-white">LangSmith</strong> for monitoring production AI — once your LangGraph agents are deployed, track their performance, cost, and quality.</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="p-6 rounded-2xl bg-base border border-accent/20">
+        <h4 class="font-semibold mb-3 flex items-center gap-2">
+          <svg class="w-5 h-5 text-accent-light" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          Bottom Line
+        </h4>
+        <p class="text-sm text-gray-400">
+          <strong class="text-white">Use Claude Code CLI</strong> (this guide) to <em>build</em> software with AI as your dev team.
+          <strong class="text-white">Use LangGraph/LangChain</strong> when your software <em>contains</em> AI agents as a feature, or when you need unattended, production-grade orchestration running as a service.
+          They solve different problems at different layers.
+        </p>
       </div>
     </div>
   </section>
